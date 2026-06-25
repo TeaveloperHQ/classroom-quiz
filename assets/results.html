@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>퀴즈 결과</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='%236366f1'/><stop offset='.5' stop-color='%238b5cf6'/><stop offset='1' stop-color='%2306b6d4'/></linearGradient></defs><rect width='64' height='64' rx='14' fill='url(%23g)'/><circle cx='32' cy='25' r='9' fill='white'/><path d='M32 31 L43 48 L21 48 Z' fill='white'/></svg>">
+<script>(function(){try{var t=localStorage.getItem('cq_theme');if(t!=='light'&&t!=='dark')t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+<style>
+  :root { color-scheme: light;
+    --bg:#fafafa; --surface:#ffffff; --bd:#e4e4e7; --mut:#71717a; --fg:#18181b;
+    --acc:#2563eb; --acc-soft:#eff6ff; --on-acc:#ffffff; --hover:#f4f4f5;
+    --brand: linear-gradient(135deg,#6366f1,#8b5cf6 50%,#06b6d4);
+    --shadow: 0 1px 3px rgba(24,24,27,.08), 0 1px 2px rgba(24,24,27,.04); }
+  :root[data-theme="dark"] { color-scheme: dark;
+    --bg:#0f172a; --surface:#1e293b; --bd:#334155; --mut:#94a3b8; --fg:#e2e8f0;
+    --acc:#38bdf8; --acc-soft:#0c2a40; --on-acc:#06283d; --hover:#334155;
+    --shadow: 0 1px 3px rgba(0,0,0,.45), 0 1px 2px rgba(0,0,0,.3); }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, "Noto Sans KR", sans-serif; background: var(--bg); color: var(--fg); }
+  body::before { content:""; position: fixed; inset: 0; z-index: -1; pointer-events: none; background: var(--brand);
+    -webkit-mask: url(/emblem.png) center / auto 56vh no-repeat; mask: url(/emblem.png) center / auto 56vh no-repeat; opacity: .06; }
+  :root[data-theme="dark"] body::before { opacity: .10; }
+
+  header { padding: 12px 24px; background: var(--surface); border-bottom: 1px solid var(--bd);
+           display: flex; align-items: center; gap: 16px; flex-wrap: wrap; position: sticky; top: 0; z-index: 5; }
+  .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+  .brand:hover { opacity: .85; }
+  .brand img { width: 34px; height: 34px; padding: 5px 9px; border-radius: 8px; background: var(--brand); object-fit: contain; }
+  .brand b { font-size: 18px; font-weight: 800; background: var(--brand);
+             -webkit-background-clip: text; background-clip: text; color: transparent; }
+  header a { font-size: 13px; color: var(--acc); text-decoration: none; font-weight: 600; }
+  header .sp { margin-left: auto; }
+  .ico { width: 15px; height: 15px; flex-shrink: 0; }
+  .themebtn { display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--bd);
+              background: var(--surface); color: var(--fg); border-radius: 8px; padding: 7px; cursor: pointer; }
+  .themebtn:hover { background: var(--hover); }
+
+  main { max-width: 860px; margin: 0 auto; padding: 24px; }
+  .group { margin-bottom: 28px; }
+  .group > h2 { font-size: 17px; margin: 0 0 10px; display: flex; align-items: baseline; gap: 8px; }
+  .group > h2 .cnt { font-size: 13px; color: var(--mut); font-weight: 600; }
+
+  .sess { background: var(--surface); border: 1px solid var(--bd); border-radius: 12px; margin-bottom: 10px;
+          box-shadow: var(--shadow); overflow: hidden; }
+  .sess .row { display: flex; align-items: center; gap: 14px; padding: 14px 16px; cursor: pointer; }
+  .sess .row:hover { background: var(--hover); }
+  .sess .date { font-weight: 700; }
+  .sess .meta { margin-left: auto; font-size: 14px; color: var(--mut); white-space: nowrap; }
+  .sess .meta .top { color: var(--acc); font-weight: 700; }
+  .sess .meta .ico { vertical-align: -3px; }
+  .sess .chev { display: inline-flex; color: var(--mut); transition: transform .15s; }
+  .sess.open .chev { transform: rotate(90deg); }
+
+  .detail { display: none; padding: 4px 16px 16px; border-top: 1px solid var(--bd); }
+  .sess.open .detail { display: block; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; margin: 12px 0; }
+  th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--bd); }
+  th { color: var(--mut); font-weight: 700; }
+  td.n { text-align: right; font-variant-numeric: tabular-nums; }
+  .acts { display: flex; gap: 8px; flex-wrap: wrap; }
+  .b { border: 1px solid var(--bd); background: var(--surface); color: var(--fg); border-radius: 8px;
+       padding: 7px 12px; cursor: pointer; font-weight: 700; font-size: 13px; }
+  .b:hover { background: var(--hover); }
+  .b.csv { background: var(--acc); color: var(--on-acc); border-color: transparent; }
+  .b.del { color: #dc2626; }
+
+  .empty { color: var(--mut); text-align: center; margin-top: 90px; }
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--acc);
+           color: var(--on-acc); padding: 12px 20px; border-radius: 10px; font-weight: 700; opacity: 0;
+           transition: opacity .2s; pointer-events: none; box-shadow: var(--shadow); }
+  .toast.show { opacity: 1; } .toast.err { background: #dc2626; color: #fff; }
+</style>
+</head>
+<body>
+<header>
+  <a class="brand" href="/host" title="처음 화면(교사 메인)으로"><img src="/emblem.png" alt="teaveloper"><b>퀴즈 결과</b></a>
+  <span class="sp"></span>
+  <a href="/host">교사 화면</a>
+  <a href="/author">＋ 퀴즈 만들기</a>
+  <button class="themebtn" id="themeBtn" title="라이트/다크 전환"></button>
+</header>
+<main id="main">
+  <div class="empty" id="empty">아직 저장된 결과가 없습니다. 게임을 끝까지(시상대) 진행하면 자동으로 저장됩니다.</div>
+</main>
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = (s, el=document) => el.querySelector(s);
+const el = (t,c,h) => { const e=document.createElement(t); if(c)e.className=c; if(h!=null)e.innerHTML=h; return e; };
+const cache = {}; // file -> GameResult
+// teaveloper 스타일 인라인 아이콘(currentColor — 테마 자동 적용).
+const ICONS = {
+  moon: '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>',
+  sun: '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>',
+  chevron: '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg>',
+  people: '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 20v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="3.5"/><path d="M22 20v-2a4 4 0 0 0-3-3.87"/></svg>',
+  trophy: '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M6 4h12v4a6 6 0 0 1-12 0V4Z"/><path d="M6 7H4a2 2 0 0 0 0 4h2M18 7h2a2 2 0 0 1 0 4h-2"/></svg>',
+};
+
+function toast(msg, err){ const t=$('#toast'); t.textContent=msg; t.className='toast show'+(err?' err':''); setTimeout(()=>t.className='toast',1800); }
+function fmtDate(iso){ try { return new Date(iso).toLocaleString('ko-KR',{dateStyle:'medium',timeStyle:'short'}); } catch(e){ return iso; } }
+function esc(s){ return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+
+(function initTheme(){
+  const b=$('#themeBtn');
+  const sync=()=>b.innerHTML=document.documentElement.getAttribute('data-theme')==='dark'?ICONS.sun:ICONS.moon;
+  sync();
+  b.onclick=()=>{ const n=document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark';
+    document.documentElement.setAttribute('data-theme',n); try{localStorage.setItem('cq_theme',n);}catch(e){} sync(); };
+})();
+
+async function load(){
+  let list;
+  try { list = await fetch('/api/results').then(r=>r.json()); }
+  catch(e){ return toast('결과를 불러오지 못했습니다.', true); }
+  const main = $('#main'); main.innerHTML='';
+  if(!Array.isArray(list) || list.length===0){
+    main.append(el('div','empty','아직 저장된 결과가 없습니다. 게임을 끝까지(시상대) 진행하면 자동으로 저장됩니다.'));
+    return;
+  }
+  // 퀴즈별 그룹(그룹 내 최신순, 그룹은 가장 최근 세션 순).
+  const groups = {};
+  for(const s of list){ (groups[s.quizId] ||= { title:s.quizTitle, items:[] }).items.push(s); }
+  const ordered = Object.entries(groups).sort((a,b)=> (b[1].items[0].finishedAt).localeCompare(a[1].items[0].finishedAt));
+  for(const [qid, g] of ordered){
+    const box = el('div','group');
+    box.append(el('h2', '', `<span>${esc(g.title||'(제목 없음)')}</span><span class="cnt">${g.items.length}회</span>`));
+    for(const s of g.items) box.append(sessionEl(s));
+    main.append(box);
+  }
+}
+
+function sessionEl(s){
+  const sess = el('div','sess');
+  const row = el('div','row');
+  row.innerHTML = `<span class="chev">${ICONS.chevron}</span>
+    <span class="date">${esc(fmtDate(s.finishedAt))}</span>
+    <span class="meta">${ICONS.people} ${s.players}명 · <span class="top">${ICONS.trophy} ${esc(s.topName||'-')} ${s.topScore||0}점</span></span>`;
+  const detail = el('div','detail','<div class="muted">불러오는 중…</div>');
+  let loaded = false;
+  row.onclick = async () => {
+    sess.classList.toggle('open');
+    if(sess.classList.contains('open') && !loaded){
+      loaded = true;
+      try {
+        const res = await fetch(`/api/results/${s.quizId}/${s.file}`).then(r=>r.json());
+        cache[s.file] = res;
+        detail.innerHTML = '';
+        detail.append(tableEl(res), actsEl(s, res));
+      } catch(e){ detail.innerHTML = '<div class="muted">결과를 불러오지 못했습니다.</div>'; loaded=false; }
+    }
+  };
+  sess.append(row, detail);
+  return sess;
+}
+
+function tableEl(res){
+  const t = el('table');
+  t.innerHTML = `<thead><tr><th>순위</th><th>이름</th><th>점수</th><th>정답</th></tr></thead>`;
+  const tb = el('tbody');
+  for(const p of res.players){
+    const tr = el('tr');
+    tr.innerHTML = `<td class="n">${p.rank}</td><td>${esc(p.name)}</td>
+      <td class="n">${p.score}</td><td class="n">${p.correct} / ${res.questions}</td>`;
+    tb.append(tr);
+  }
+  t.append(tb);
+  return t;
+}
+
+function actsEl(s, res){
+  const wrap = el('div','acts');
+  const csv = el('button','b csv','CSV 내보내기');
+  csv.onclick = () => download(baseName(res)+'.csv', toCSV(res), 'text/csv;charset=utf-8');
+  const json = el('button','b','JSON 내보내기');
+  json.onclick = () => download(baseName(res)+'.json', JSON.stringify(res,null,2), 'application/json');
+  const del = el('button','b del','삭제');
+  del.onclick = async () => {
+    if(!confirm('이 결과 기록을 삭제할까요?')) return;
+    try { await fetch(`/api/results/${s.quizId}/${s.file}`,{method:'DELETE'}); toast('삭제됨'); load(); }
+    catch(e){ toast('삭제 실패', true); }
+  };
+  wrap.append(csv, json, del);
+  return wrap;
+}
+
+function baseName(res){
+  const d = (res.finishedAt||'').slice(0,16).replace(/[:T]/g,'-');
+  const t = (res.quizTitle||'quiz').trim().replace(/[\\/:*?"<>|]+/g,'_').slice(0,40) || 'quiz';
+  return `${t}_${d}`;
+}
+
+function toCSV(res){
+  const q = s => '"' + String(s).replace(/"/g,'""') + '"';
+  const L = [];
+  L.push([q('퀴즈'), q(res.quizTitle)].join(','));
+  L.push([q('일시'), q(fmtDate(res.finishedAt))].join(','));
+  L.push([q('문항수'), res.questions].join(','));
+  L.push('');
+  L.push(['순위','이름','점수','정답','총문항'].map(q).join(','));
+  for(const p of res.players) L.push([p.rank, q(p.name), p.score, p.correct, res.questions].join(','));
+  return '﻿' + L.join('\r\n'); // BOM: 엑셀 한글 깨짐 방지
+}
+
+function download(name, text, mime){
+  const a = el('a');
+  a.href = URL.createObjectURL(new Blob([text], { type: mime }));
+  a.download = name; document.body.append(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
+  toast('내보냄: ' + name);
+}
+
+load();
+</script>
+</body>
+</html>
