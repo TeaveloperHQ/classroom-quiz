@@ -20,9 +20,9 @@ const (
 	phasePodium     phase = "podium"
 )
 
-// 보기 색/도형 — 카훗식. 인덱스별로 학생/공개 화면이 동일하게 쓴다.
-var choiceColors = []string{"#e21b3c", "#1368ce", "#d89e00", "#26890c", "#9c27b0", "#0aa3a3"}
-var choiceShapes = []string{"▲", "◆", "●", "■", "★", "⬢"}
+// 보기별 색 — teaveloper 테마 계열(인디고/시안/퍼플 중심). 인덱스별로 학생/공개 화면이 동일하게 쓴다.
+// 도형은 쓰지 않고 보기 순번만큼의 엠블럼 개수로 표시(1개·2개 나란히·3개부터 방사형) — 클라이언트가 n 으로 그린다.
+var choiceColors = []string{"#6366f1", "#06b6d4", "#a855f7", "#f43f5e", "#14b8a6", "#f59e0b"}
 
 const (
 	streakStep  = 100 // 연속정답 1회당 보너스
@@ -307,7 +307,7 @@ func (h *Hub) choiceView(c Choice, idx int, withCorrect bool) map[string]any {
 	m := map[string]any{
 		"text":  c.Text,
 		"color": choiceColors[idx%len(choiceColors)],
-		"shape": choiceShapes[idx%len(choiceShapes)],
+		"n":     idx + 1, // 보기 순번 = 표시할 엠블럼 개수
 	}
 	if withCorrect {
 		m["correct"] = c.Correct

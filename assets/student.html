@@ -62,7 +62,15 @@
          cursor:pointer; padding:10px; min-height: 90px; transition: transform .05s;
          box-shadow: 0 1px 3px rgba(24,24,27,.12); }
   .opt:active { transform: scale(.97); }
-  .opt .shape { font-size: 40px; }
+  .opt .shape { width: 54px; height: 54px; display: flex; align-items: center; justify-content: center; }
+  /* 보기 표시 = teaveloper 엠블럼 개수(순번). 1·2개 나란히, 3개부터 방사형. */
+  .emblems { display: flex; align-items: center; justify-content: center; }
+  .emblems .em { display: block; }
+  .emblems.row { gap: 4px; }
+  .emblems.row .em { width: auto; height: 44px; }
+  .emblems.radial { position: relative; width: 54px; height: 54px; }
+  .emblems.radial .em { position: absolute; left: 50%; top: 50%; width: auto; height: 23px;
+    transform: translate(-50%,-50%) rotate(var(--a)) translateY(-16px) rotate(calc(-1 * var(--a))); }
   .opt .txt { font-size: 16px; opacity:.95; }
   .opts.locked .opt { opacity:.45; }
   .opts.locked .opt.picked { opacity:1; outline:4px solid var(--acc); }
@@ -119,6 +127,16 @@ function randId(){ const a=new Uint8Array(8); crypto.getRandomValues(a);
   return [...a].map(b=>b.toString(16).padStart(2,'0')).join(''); }
 function send(o){ if(ws&&ws.readyState===1) ws.send(JSON.stringify(o)); }
 function escapeHtml(s){ return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+// 보기 순번 n 만큼 엠블럼(1·2개 나란히, 3개부터 방사형).
+function emblemImg(){ const i=el('img','em'); i.src='/emblem.png'; i.alt=''; return i; }
+function shapeEl(n){
+  n = Math.max(1, n||1);
+  const s = el('span','shape');
+  const w = el('div','emblems ' + (n<=2 ? 'row' : 'radial'));
+  for(let k=0;k<n;k++){ const e=emblemImg(); if(n>2) e.style.setProperty('--a',(360/n*k)+'deg'); w.append(e); }
+  s.append(w);
+  return s;
+}
 
 function renderJoin(pre){
   $('#topbar').style.display='none';
@@ -187,7 +205,8 @@ function renderQuestion(s){
     s.choices.forEach((c,i)=>{
       const b=el('button','opt');
       b.style.background=c.color;
-      b.innerHTML=`<span class="shape">${c.shape}</span><span class="txt">${escapeHtml(c.text)}</span>`;
+      const txt=el('span','txt'); txt.textContent=c.text;
+      b.append(shapeEl(c.n), txt);
       b.onclick=()=>{ send({type:'answer', choice:i});
         // 즉시 잠금 피드백(서버 확정 state 가 곧 옴)
         grid.classList.add('locked'); b.classList.add('picked');
