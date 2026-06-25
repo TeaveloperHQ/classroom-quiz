@@ -11,12 +11,12 @@
   <!-- 브랜드 라운드 사각형 -->
   <rect x="112" y="112" width="800" height="800" rx="184" fill="url(#g)"/>
 
-  <!-- Q 모노그램(Quiz) — 두꺼운 흰 링 + 꼬리 -->
-  <circle cx="512" cy="478" r="212" fill="none" stroke="#ffffff" stroke-width="72"/>
-  <rect x="-78" y="-36" width="156" height="72" rx="36" fill="#ffffff"
-        transform="translate(676 642) rotate(45)"/>
+  <!-- Q 모노그램(Quiz) — 둥근 사각형 링 + 꼬리. 크게 키움 -->
+  <rect x="232" y="232" width="560" height="560" rx="150" fill="none" stroke="#ffffff" stroke-width="80"/>
+  <rect x="-92" y="-40" width="184" height="80" rx="40" fill="#ffffff"
+        transform="translate(748 748) rotate(45)"/>
 
-  <!-- Q 안에 teaveloper 엠블럼(흰 사람/키홀) -->
-  <circle cx="512" cy="436" r="46" fill="#ffffff"/>
-  <path d="M512 464 L458 552 L566 552 Z" fill="#ffffff"/>
+  <!-- Q 안에 teaveloper 엠블럼(흰 사람/키홀) — 확대 -->
+  <circle cx="512" cy="446" r="78" fill="#ffffff"/>
+  <path d="M512 500 L414 664 L610 664 Z" fill="#ffffff"/>
 </svg>
