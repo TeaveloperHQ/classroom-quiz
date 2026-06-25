@@ -1,0 +1,33 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- teaveloper 공식 브랜드 그라데이션 -->
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%"   stop-color="#6366f1"/>
+      <stop offset="50%"  stop-color="#8b5cf6"/>
+      <stop offset="100%" stop-color="#06b6d4"/>
+    </linearGradient>
+  </defs>
+
+  <!-- 브랜드 라운드 사각형 -->
+  <rect x="112" y="112" width="800" height="800" rx="184" fill="url(#g)"/>
+
+  <!-- teaveloper 엠블럼(흰 사람/키홀) — 상단 중앙 -->
+  <circle cx="512" cy="292" r="74" fill="#ffffff"/>
+  <path d="M512 338 L424 470 L600 470 Z" fill="#ffffff"/>
+
+  <!-- 객관식 보기 타일 2x2 (흰색), 하나엔 정답 체크 나머진 보기글 -->
+  <g>
+    <rect x="258" y="520" width="228" height="112" rx="26" fill="#ffffff"/>
+    <rect x="538" y="520" width="228" height="112" rx="26" fill="#ffffff"/>
+    <rect x="258" y="668" width="228" height="112" rx="26" fill="#ffffff"/>
+    <rect x="538" y="668" width="228" height="112" rx="26" fill="#ffffff"/>
+
+    <!-- 정답 체크(좌상단 타일) -->
+    <path d="M344 578 l20 22 l40 -48" fill="none" stroke="#6366f1" stroke-width="20"
+          stroke-linecap="round" stroke-linejoin="round"/>
+    <!-- 보기글 막대(나머지 타일) -->
+    <rect x="594" y="567" width="116" height="18" rx="9" fill="#8b5cf6"/>
+    <rect x="314" y="715" width="116" height="18" rx="9" fill="#06b6d4"/>
+    <rect x="594" y="715" width="116" height="18" rx="9" fill="#a855f7"/>
+  </g>
+</svg>
