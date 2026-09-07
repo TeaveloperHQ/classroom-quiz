@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "classroom-quiz": {
+      "command": "dist/classroom-quiz.exe",
+      "args": ["mcp"]
+    }
+  }
+}

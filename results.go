@@ -40,7 +40,7 @@ type ResultSummary struct {
 	TopScore   int    `json:"topScore"`
 }
 
-func resultsDir() string { return filepath.Join(exeDir(), "results") }
+func resultsDir() string { return filepath.Join(dataDir(), "results") }
 
 // validResultFile 은 경로 조작을 막는다(폴더 안 단일 .json 파일명만 허용).
 func validResultFile(name string) bool {

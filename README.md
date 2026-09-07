@@ -57,11 +57,38 @@ go run .
 - 학생 → 서버: `{type:"answer",choice:N}`
 - 서버 → 클라: `{type:"state",role,phase,...}` (호스트=전체 뷰 / 학생=개인 뷰), 오류는 `{type:"error",message}`
 
+## AI 로 퀴즈 만들기 (MCP)
+
+같은 exe 가 **MCP(Model Context Protocol) 서버**로도 동작한다. Claude 같은 AI 에게
+"3단원으로 10문항 만들어줘" 라고 말하면 AI 가 `quizzes/` 에 퀴즈를 바로 저장하고,
+교사는 `/author` 에서 다듬어 그대로 진행하면 된다.
+
+```bash
+classroom-quiz.exe mcp     # stdio(표준입출력) JSON-RPC. 포트를 열지 않는다.
+```
+
+- **교사 PC 에 파이썬·Node 를 깔지 않는다** — 배포물인 exe 자신이 MCP 서버다(별도 설치 0).
+- 저장 경로·검증은 편집기와 **완전히 동일**(`saveQuiz` 재사용) → AI 가 만든 퀴즈와 손으로 만든 퀴즈가 같다.
+- 도구: `list_quizzes` `get_quiz` `create_quiz` `update_quiz` `delete_quiz` `list_results` `get_result`.
+- **그림은 조회 시 자리표시자로 치환**한다(base64 1MB 를 대화에 흘리지 않도록). 수정 시 그 값을
+  그대로 돌려보내면 원본 그림이 유지된다.
+- 앱 서버가 떠 있지 않아도 되고(파일만 다룬다), 떠 있어도 안전하다(임시파일→rename).
+  단 **실행 중인 편집기 화면은 자동 갱신되지 않으니 새로고침**이 필요하다.
+
+클라이언트 설정(교사용 Claude Desktop 등)은 [MANUAL 13. AI로 퀴즈 만들기](MANUAL.md#13-ai로-퀴즈-만들기-mcp) 참고.
+이 저장소에는 Claude Code 용 [`.mcp.json`](.mcp.json) 이 들어 있다(`./build.sh` 로 `dist/classroom-quiz.exe`
+를 먼저 만들어야 한다. 리눅스에서 개발 중이라면 `go build -o classroom-quiz .` 후 명령을
+`./classroom-quiz` 로 바꾼다).
+
+퀴즈/결과 폴더는 기본이 **exe 옆**이다. `CLASSROOM_QUIZ_HOME` 환경변수로 다른 폴더를 지정할 수 있다
+(개발 중 실제 데이터와 분리하거나, 공유 폴더에 모을 때).
+
 ## 파일
 
 | 파일 | 역할 |
 |---|---|
-| main.go | LAN IP 탐지·`0.0.0.0` 바인딩·라우팅·QR·브라우저 자동오픈·로그 |
+| main.go | LAN IP 탐지·`0.0.0.0` 바인딩·라우팅·QR·브라우저 자동오픈·로그·`mcp` 서브커맨드 |
+| mcp.go | MCP 서버(stdio JSON-RPC) — AI 가 퀴즈를 만들고 결과를 읽는 도구 |
 | hub.go | 연결/디스패치(액터 run 루프), client, 재접속, 토큰 |
 | game.go | 상태머신·점수·스트릭·분포·순위·시상대·뷰 빌더 |
 | store.go | 퀴즈 JSON 저장소(CRUD, 검증, 원자적 쓰기) |

@@ -25,9 +25,9 @@ const (
 var choiceColors = []string{"#6366f1", "#06b6d4", "#a855f7", "#f43f5e", "#14b8a6", "#f59e0b"}
 
 const (
-	streakStep  = 100 // 연속정답 1회당 보너스
-	streakCap   = 5   // 보너스 최대 단계(+500)
-	leaderTopN  = 8   // 순위표에 보여줄 상위 인원
+	streakStep = 100 // 연속정답 1회당 보너스
+	streakCap  = 5   // 보너스 최대 단계(+500)
+	leaderTopN = 8   // 순위표에 보여줄 상위 인원
 )
 
 type Player struct {
@@ -42,10 +42,10 @@ type Player struct {
 	correctTotal int // 이번 판에서 맞힌 문항 수(결과 저장용)
 
 	// 현재 문항 한정
-	answered   bool
-	answerIdx  int
-	answerTime time.Time
-	lastGain   int
+	answered    bool
+	answerIdx   int
+	answerTime  time.Time
+	lastGain    int
 	lastCorrect bool
 }
 

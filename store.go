@@ -65,8 +65,18 @@ type QuizSummary struct {
 	Updated   string `json:"updated"`
 }
 
+// dataDir 은 퀴즈·결과가 쌓이는 폴더의 부모다. 기본은 exe 옆(교사가 폴더째 백업하기 쉬움).
+// CLASSROOM_QUIZ_HOME 을 지정하면 그 폴더를 쓴다 — 개발 중 `go run .` 이나 MCP 서버를
+// 실제 데이터와 떨어진 곳에서 시험할 때, 또는 공유 폴더에 모아 둘 때 쓴다.
+func dataDir() string {
+	if d := os.Getenv("CLASSROOM_QUIZ_HOME"); d != "" {
+		return d
+	}
+	return exeDir()
+}
+
 func quizzesDir() string {
-	return filepath.Join(exeDir(), "quizzes")
+	return filepath.Join(dataDir(), "quizzes")
 }
 
 func quizPath(id string) string {

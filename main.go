@@ -8,6 +8,9 @@
 //
 // 웹 자산(host.html/student.html)은 //go:embed 로 바이너리에 박혀 있어 배포 파일은 exe 하나.
 //
+// 같은 exe 를 `classroom-quiz.exe mcp` 로 실행하면 서버 대신 MCP 서버로 동작한다 —
+// AI(Claude 등)가 교사 대신 퀴즈를 만들어 quizzes/ 에 저장한다(mcp.go).
+//
 // 빌드(리눅스에서 윈도우 exe, CGO 불필요):  ./build.sh
 package main
 
@@ -40,6 +43,13 @@ const (
 
 func main() {
 	setupLogging()
+
+	// `classroom-quiz.exe mcp` — AI(Claude 등)가 퀴즈를 만들어 주는 MCP 서버 모드.
+	// 서버를 띄우지 않고 표준입출력으로만 대화하므로 포트도 브라우저도 쓰지 않는다(mcp.go).
+	if len(os.Args) > 1 && os.Args[1] == "mcp" {
+		runMCP()
+		return
+	}
 
 	sub, err := fs.Sub(assetsFS, "assets")
 	if err != nil {
