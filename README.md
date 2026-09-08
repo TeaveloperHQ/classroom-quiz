@@ -23,6 +23,20 @@
 
 리눅스에서 그대로 윈도우 exe 크로스컴파일된다(`CGO_ENABLED=0`, C 컴파일러 불필요).
 
+**실행 아이콘·파일 속성**은 `resource_windows_amd64.syso` 로 들어간다. Go 는 `branding/app.ico`
+같은 이미지 파일을 스스로 넣지 않으므로, 아이콘·버전 정보를 담은 리소스 오브젝트를 만들어
+저장소에 커밋해 둔다 — 링커가 **파일명 규칙(`_windows_amd64`)만 보고 자동 링크**하므로
+빌드 명령이나 CI/포털 설정을 건드릴 필요가 없고, 리눅스·arm64 빌드에서는 자동으로 무시된다.
+`branding/app.ico` 나 `versioninfo.json` 을 고치면 다시 만들어 커밋한다:
+
+```bash
+go run github.com/josephspurrier/goversioninfo/cmd/goversioninfo@latest \
+  -icon=branding/app.ico -o=resource_windows_amd64.syso -64 versioninfo.json
+```
+
+넣었는지 확인: exe 에 `.rsrc` 섹션이 있으면 된다. 윈도우에서는
+`(Get-Item dist\classroom-quiz.exe).VersionInfo` 로 제품 이름·버전이 보인다.
+
 로컬 실행(개발):
 ```bash
 go run .
@@ -95,6 +109,7 @@ classroom-quiz.exe mcp     # stdio(표준입출력) JSON-RPC. 포트를 열지 �
 | author.go | 저작 API + `localOnly` 게이트 |
 | results.go | 게임 결과 저장소(퀴즈별·날짜별 CRUD) |
 | netmedia*.go | 학생 접속 IP의 연결 방식 판별(무선/유선) |
+| versioninfo.json + resource_windows_amd64.syso | 윈도우 실행 아이콘·파일 속성(제품 이름·버전) 리소스 |
 | assets/{host,student,author,results}.html | 교사 화면 / 학생 화면 / 편집기 / 결과 |
 
 ## 다음 후보

@@ -1,0 +1,26 @@
+{
+  "FixedFileInfo": {
+    "FileVersion": { "Major": 0, "Minor": 1, "Patch": 0, "Build": 0 },
+    "ProductVersion": { "Major": 0, "Minor": 1, "Patch": 0, "Build": 0 },
+    "FileFlagsMask": "3f",
+    "FileFlags ": "00",
+    "FileOS": "040004",
+    "FileType": "01",
+    "FileSubType": "00"
+  },
+  "StringFileInfo": {
+    "CompanyName": "Teaveloper",
+    "FileDescription": "교실 퀴즈 — 같은 와이파이에서 QR로 접속하는 교실 실시간 퀴즈",
+    "FileVersion": "0.1.0.0",
+    "InternalName": "classroom-quiz",
+    "LegalCopyright": "MIT License",
+    "OriginalFilename": "classroom-quiz.exe",
+    "ProductName": "교실 퀴즈",
+    "ProductVersion": "0.1.0.0"
+  },
+  "VarFileInfo": {
+    "Translation": { "LangID": "0412", "CharsetID": "04B0" }
+  },
+  "IconPath": "branding/app.ico",
+  "ManifestPath": ""
+}
