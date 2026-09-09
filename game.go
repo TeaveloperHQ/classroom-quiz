@@ -102,6 +102,7 @@ func (h *Hub) beginQuestion(i int) {
 		p.answerIdx = -1
 	}
 	dur := time.Duration(h.quiz.Questions[i].TimeSec) * time.Second
+	h.qEnd = h.qStart.Add(dur)
 	h.resetTimer(dur)
 	h.broadcastState()
 }
@@ -227,10 +228,29 @@ func (h *Hub) endGame() {
 	h.phase = phaseLobby
 	h.quiz = nil
 	h.qIndex = -1
+	// 게임 중 끊긴 학생은 점수를 지키려 남겨 뒀던 것이므로, 로비로 돌아올 때 정리한다.
+	// (안 그러면 다음 판 참가자 명단에 옛 이름이 유령으로 남는다.)
+	for _, tok := range append([]string(nil), h.order...) {
+		if p := h.players[tok]; p != nil && p.conn == nil {
+			h.removePlayer(tok)
+		}
+	}
 	h.broadcastState()
 }
 
 // ── 헬퍼 ────────────────────────────────────────────────────────
+
+// remainMs 는 현재 문항의 남은 시간(ms). 남은 시간의 기준은 서버다 — 상태 메시지는 학생이
+// 답할 때마다 다시 오므로, 클라가 매번 제한시간부터 새로 세면 숫자가 되돌아가 튄다.
+func (h *Hub) remainMs() int64 {
+	if h.qEnd.IsZero() {
+		return 0
+	}
+	if d := time.Until(h.qEnd).Milliseconds(); d > 0 {
+		return d
+	}
+	return 0
+}
 
 func (h *Hub) resetTimer(d time.Duration) {
 	h.stopTimer()
@@ -321,7 +341,7 @@ func (h *Hub) hostStateMsg() []byte {
 	case phaseLobby:
 		names := make([]string, 0, len(h.order))
 		for _, tok := range h.order {
-			if p := h.players[tok]; p != nil {
+			if p := h.players[tok]; p != nil && p.conn != nil {
 				names = append(names, p.name)
 			}
 		}
@@ -340,6 +360,7 @@ func (h *Hub) hostStateMsg() []byte {
 		m["image"] = q.Image
 		m["choices"] = ch
 		m["timeSec"] = q.TimeSec
+		m["remainMs"] = h.remainMs()
 		m["answers"] = h.answeredCount()
 		m["players"] = h.activeCount()
 
@@ -418,6 +439,7 @@ func (h *Hub) studentStateMsg(p *Player) []byte {
 		m["total"] = len(h.quiz.Questions)
 		m["choices"] = ch
 		m["timeSec"] = q.TimeSec
+		m["remainMs"] = h.remainMs()
 		m["answered"] = p.answered
 		m["yourChoice"] = p.answerIdx
 

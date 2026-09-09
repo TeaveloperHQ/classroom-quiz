@@ -352,11 +352,24 @@ function optEl(c, opts={}){
   return o;
 }
 
+// 남은 ms → 화면에 띄울 초.
+function secLeft(ms){ return Math.max(0, Math.ceil(ms/1000)); }
+// 마감 시각을 고정해 두고 그려서, 다시 그려도 숫자가 튀지 않는다.
+function startCountdown(elm, remainMs){
+  const endsAt = Date.now() + remainMs;
+  const tick = ()=>{ const left = secLeft(endsAt - Date.now()); elm.textContent = left;
+    if(left<=0){ clearInterval(countdown); countdown=null; } };
+  clearInterval(countdown);
+  countdown = setInterval(tick, 200);
+  tick();
+}
+
 function renderQuestion(s){
   app.innerHTML='';
   const head = el('div','qhead');
   head.append(el('span','idx',`문제 ${s.index} / ${s.total}`));
-  const timer = el('div','timer', String(s.timeSec));
+  const remainMs = (s.remainMs!=null ? s.remainMs : (s.timeSec||0)*1000);
+  const timer = el('div','timer', String(secLeft(remainMs)));
   head.append(timer);
   const ans = el('div','ans'); ans.innerHTML = `<span style="color:#2563eb">${s.answers}</span> / ${s.players} 답변`;
   head.append(ans);
@@ -371,9 +384,9 @@ function renderQuestion(s){
   app.append(el('div','center',`<button class="btn" id="nx">정답 공개 →</button>`));
   $('#nx').onclick = () => send({type:'next'});
 
-  // 카운트다운(서버가 시간초과 시 자동 공개; 화면은 표시용).
-  let t = s.timeSec;
-  countdown = setInterval(()=>{ t--; timer.textContent = Math.max(0,t); if(t<=0) clearInterval(countdown); }, 1000);
+  // 카운트다운은 서버가 준 '남은 시간' 기준(표시용 — 시간초과 처리는 서버가 한다).
+  // 상태 메시지는 학생이 답할 때마다 다시 오므로, 제한시간부터 새로 세면 숫자가 되돌아가 튄다.
+  startCountdown(timer, remainMs);
   // 답변 수 실시간 갱신은 새 state(broadcastHost) 가 들어오며 자동 반영됨.
 }
 

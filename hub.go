@@ -54,6 +54,7 @@ type Hub struct {
 	phase  phase
 	qIndex int
 	qStart time.Time
+	qEnd   time.Time // 현재 문항의 마감 시각 — 남은 시간은 서버가 정한다(클라 카운트다운은 표시용)
 	timer  *time.Timer
 }
 
@@ -95,6 +96,18 @@ func (h *Hub) onRegister(c *client) {
 	}
 	// 학생: 토큰으로 기존 플레이어를 찾으면 재접속(점수 유지), 없으면 신규.
 	p, ok := h.players[c.token]
+	if !ok {
+		// 토큰이 다른데(예: QR 을 다시 찍어 새 탭에서 들어옴 — 탭마다 세션이 새로 생긴다)
+		// 게임 중이라면 같은 이름으로 끊겨 있던 학생을 이어받는다. 안 그러면 점수를 잃고
+		// 명단에 옛 이름이 유령으로 남는다.
+		if h.phase != phaseLobby {
+			if old := h.findDisconnectedByName(c.name); old != nil {
+				h.retoken(old, c.token)
+				p, ok = old, true
+				log.Printf("학생 재입장(이름으로 이어받음): %s", p.name)
+			}
+		}
+	}
 	if ok {
 		p.conn = c
 		if c.name != "" {
@@ -117,14 +130,63 @@ func (h *Hub) onUnregister(c *client) {
 		close(c.send)
 		return
 	}
-	// 학생은 점수 보존을 위해 삭제하지 않고 연결만 끊는다(재접속 대비).
+	// 게임 중에는 점수 보존을 위해 삭제하지 않고 연결만 끊는다(재접속 대비).
+	// 로비에서는 지킬 점수가 없으므로 명단에서 아예 뺀다 — 남겨 두면 나간 학생이나
+	// 이름을 바꿔 다시 들어온 학생의 옛 이름이 참가자 명단에 계속 남는다.
 	if p, ok := h.players[c.token]; ok && p.conn == c {
 		p.conn = nil
 		close(c.send)
-		log.Printf("학생 연결 끊김: %s", p.name)
+		if h.phase == phaseLobby {
+			h.removePlayer(c.token)
+			log.Printf("학생 나감: %s — 총 %d명", p.name, len(h.players))
+		} else {
+			log.Printf("학생 연결 끊김: %s", p.name)
+		}
 		h.broadcastHost()
 	} else {
 		close(c.send)
+	}
+}
+
+// findDisconnectedByName 은 같은 이름으로 연결이 끊긴 플레이어를 찾는다(재입장 이어받기용).
+func (h *Hub) findDisconnectedByName(name string) *Player {
+	if name == "" {
+		return nil
+	}
+	for _, tok := range h.order {
+		if p := h.players[tok]; p != nil && p.conn == nil && p.name == name {
+			return p
+		}
+	}
+	return nil
+}
+
+// retoken 은 플레이어를 새 토큰으로 옮긴다(같은 사람이 새 탭/기기로 다시 들어온 경우).
+func (h *Hub) retoken(p *Player, newToken string) {
+	old := p.id
+	if old == newToken {
+		return
+	}
+	delete(h.players, old)
+	p.id = newToken
+	h.players[newToken] = p
+	for i, tok := range h.order {
+		if tok == old {
+			h.order[i] = newToken
+			return
+		}
+	}
+	h.order = append(h.order, newToken)
+}
+
+// removePlayer 는 명단에서 완전히 지운다(로비에서 나갔을 때만 — 게임 중엔 점수를 지켜야 한다).
+func (h *Hub) removePlayer(token string) {
+	delete(h.players, token)
+	for i, tok := range h.order {
+		if tok == token {
+			h.order = append(h.order[:i], h.order[i+1:]...)
+			return
+		}
 	}
 }
 

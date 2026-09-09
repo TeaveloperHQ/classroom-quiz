@@ -188,11 +188,22 @@ function renderWait(title, sub){
   screen.append(c);
 }
 
+function secLeft(ms){ return Math.max(0, Math.ceil(ms/1000)); }
+function startCountdown(elm, remainMs){
+  const endsAt = Date.now() + remainMs;
+  const tick = ()=>{ const left = secLeft(endsAt - Date.now()); elm.textContent = left;
+    if(left<=0){ clearInterval(countdown); countdown=null; } };
+  clearInterval(countdown);
+  countdown = setInterval(tick, 200);
+  tick();
+}
+
 function renderQuestion(s){
   screen.innerHTML='';
   const top=el('div','qbar');
   top.append(el('div','idx',`문제 ${s.index} / ${s.total}`));
-  const tm=el('div','timer',String(s.timeSec)); top.append(tm);
+  const remainMs = (s.remainMs!=null ? s.remainMs : (s.timeSec||0)*1000);
+  const tm=el('div','timer',String(secLeft(remainMs))); top.append(tm);
   screen.append(top);
 
   if(s.answered){
@@ -216,8 +227,8 @@ function renderQuestion(s){
     });
     screen.append(grid);
   }
-  let t=s.timeSec;
-  countdown=setInterval(()=>{ t--; tm.textContent=Math.max(0,t); if(t<=0) clearInterval(countdown); },1000);
+  // 남은 시간의 기준은 서버(remainMs) — 답을 낼 때마다 오는 state 로 다시 그려도 숫자가 튀지 않는다.
+  startCountdown(tm, remainMs);
 }
 
 function renderReveal(s){
