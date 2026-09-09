@@ -68,10 +68,20 @@
 
   .qcard { background: var(--surface); border: 1px solid var(--bd); border-radius: 14px; padding: 18px;
            margin-bottom: 16px; box-shadow: var(--shadow); }
-  .qcard .qhead { display: flex; align-items: center; margin-bottom: 10px; }
+  .qcard .qhead { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
   .qcard .qhead .no { font-weight: 700; color: var(--mut); }
-  .qcard .qhead button { display: inline-flex; align-items: center; gap: 5px; margin-left: auto;
-                         background: none; border: none; color: #dc2626; cursor: pointer; font-size: 14px; }
+  .qcard .qhead .spring { margin-left: auto; }
+  /* 순서 바꾸기 손잡이 — 여기를 잡아야 카드가 끌린다(질문을 쓰다가 실수로 끌리지 않게). */
+  .qcard .qhead .drag { display: inline-flex; cursor: grab; color: var(--mut); padding: 2px; }
+  .qcard .qhead .drag:active { cursor: grabbing; }
+  .qcard .qhead button { display: inline-flex; align-items: center; gap: 5px;
+                         background: none; border: none; color: var(--mut); cursor: pointer; font-size: 14px; }
+  .qcard .qhead button.del { color: #dc2626; }
+  .qcard .qhead button:hover { text-decoration: underline; }
+  .qcard.dragging { opacity: .45; }
+  /* 끌어온 문항이 어디에 놓일지 — 위/아래 테두리로 보여 준다. */
+  .qcard.over-top { box-shadow: 0 -3px 0 0 var(--acc), var(--shadow); }
+  .qcard.over-bottom { box-shadow: 0 3px 0 0 var(--acc), var(--shadow); }
   .qtext { width: 100%; font-size: 17px; padding: 12px; border-radius: 10px; border: 1px solid var(--bd);
            background: var(--bg); color: var(--fg); resize: vertical; min-height: 52px; }
 
@@ -151,6 +161,8 @@ const ICONS = {
   image: '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>',
   export: '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V5m0 0 4 4m-4-4-4 4"/><path d="M4 15v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4"/></svg>',
   x: '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>',
+  copy: '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/></svg>',
+  grip: '<svg class="ico" viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg>',
 };
 const api = (url, opt) => fetch(url, opt).then(async r => {
   const data = await r.json().catch(() => ({}));
@@ -159,6 +171,7 @@ const api = (url, opt) => fetch(url, opt).then(async r => {
 });
 const COLORS = 6;
 let current = null;       // 편집 중인 퀴즈 객체
+let dragFrom = null;      // 끌고 있는 문항의 번호(순서 바꾸기)
 let activeId = null;
 
 function toast(msg, isErr) {
@@ -244,8 +257,11 @@ function questionCard(q, qi) {
   const card = document.createElement('div');
   card.className = 'qcard'; card.dataset.qid = q.id || '';
   card.innerHTML = `
-    <div class="qhead"><span class="no">문항 ${qi + 1}</span>
-      <button title="문항 삭제">${ICONS.x} 삭제</button></div>
+    <div class="qhead">
+      <span class="drag" title="끌어서 순서 바꾸기">${ICONS.grip}</span>
+      <span class="no">문항 ${qi + 1}</span><span class="spring"></span>
+      <button class="dup" title="이 문항을 복사해 바로 아래에 넣기">${ICONS.copy} 복제</button>
+      <button class="del" title="문항 삭제">${ICONS.x} 삭제</button></div>
     <textarea class="qtext" placeholder="질문을 입력하세요"></textarea>
     <div class="imgzone"><input class="imgfile" type="file" accept="image/*" hidden></div>
     <div class="choices"></div>
@@ -265,12 +281,22 @@ function questionCard(q, qi) {
   renderImgZone(card);
   $('.qtime', card).value = q.timeSec || 20;
   $('.qpoints', card).value = q.points || 1000;
-  $('.qhead button', card).onclick = () => {
+  $('.del', card).onclick = () => {
     syncFromDOM();
     current.questions.splice(qi, 1);
     if (current.questions.length === 0) current.questions.push(blankQuestion());
     render();
   };
+  // 비슷한 문항을 여러 개 낼 때: 복제해 놓고 숫자만 바꾸면 된다.
+  $('.dup', card).onclick = () => {
+    syncFromDOM();
+    const copy = JSON.parse(JSON.stringify(current.questions[qi]));
+    copy.id = '';                       // 새 문항으로 저장되게(원본을 덮지 않게)
+    current.questions.splice(qi + 1, 0, copy);
+    render();
+    toast('문항을 복제했습니다');
+  };
+  wireDrag(card, qi);
   const cbox = $('.choices', card);
   q.choices.forEach((c, ci) => cbox.appendChild(choiceRow(c, ci, qi)));
   $('.addchoice', card).onclick = () => {
@@ -280,6 +306,57 @@ function questionCard(q, qi) {
     render();
   };
   return card;
+}
+
+/* 문항 순서 바꾸기(끌어서 놓기).
+   손잡이를 누른 동안에만 draggable 을 켠다 — 안 그러면 질문·보기 글을 마우스로 긁어
+   고르는 것조차 카드 끌기로 잡혀 버린다. */
+function wireDrag(card, qi) {
+  const handle = $('.drag', card);
+  handle.onmousedown = () => { card.draggable = true; };
+  handle.onmouseup = () => { card.draggable = false; };
+  card.ondragstart = (e) => {
+    dragFrom = qi;
+    card.classList.add('dragging');
+    if (e.dataTransfer) { e.dataTransfer.effectAllowed = 'move'; try { e.dataTransfer.setData('text/plain', String(qi)); } catch (err) {} }
+  };
+  card.ondragend = () => {
+    card.draggable = false;
+    card.classList.remove('dragging');
+    clearDropMarks(); dragFrom = null;
+  };
+  card.ondragover = (e) => {
+    if (dragFrom === null || dragFrom === qi) return;
+    e.preventDefault();
+    clearDropMarks();
+    card.classList.add(dropsAfter(card, e) ? 'over-bottom' : 'over-top');
+  };
+  card.ondragleave = () => card.classList.remove('over-top', 'over-bottom');
+  card.ondrop = (e) => {
+    if (dragFrom === null) return;
+    e.preventDefault();
+    moveQuestion(dragFrom, dropsAfter(card, e) ? qi + 1 : qi);
+  };
+}
+
+/* 카드의 위쪽 절반에 놓으면 앞으로, 아래쪽 절반이면 뒤로. */
+function dropsAfter(card, e) {
+  const r = card.getBoundingClientRect();
+  return e.clientY > r.top + r.height / 2;
+}
+
+function clearDropMarks() {
+  document.querySelectorAll('.qcard').forEach(c => c.classList.remove('over-top', 'over-bottom'));
+}
+
+function moveQuestion(from, to) {
+  syncFromDOM();                      // 화면에 쓰던 내용을 먼저 담아 둔다
+  if (to > from) to--;                // 원래 자리를 빼고 나면 뒤 번호가 하나씩 당겨진다
+  if (to === from) { clearDropMarks(); return; }
+  const [q] = current.questions.splice(from, 1);
+  current.questions.splice(to, 0, q);
+  render();
+  toast('문항 순서를 바꿨습니다');
 }
 
 function choiceRow(c, ci, qi) {
