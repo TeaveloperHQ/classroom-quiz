@@ -157,6 +157,7 @@
   <span class="spring"></span>
   <a href="/results"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14v3M12 9v8M17 12v5"/></svg>결과</a>
   <a href="/author"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>퀴즈 만들기</a>
+  <a href="#" id="mcpBtn" title="AI(Claude 등)가 퀴즈를 만들 수 있게 이 프로그램을 연결합니다"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v4M12 17v4M3 12h4M17 12h4"/><circle cx="12" cy="12" r="3.5"/></svg>AI 연결</a>
   <span id="conn" class="status">연결 중…</span>
   <button class="themebtn" id="themeBtn" title="라이트/다크 전환"></button>
 </header>
@@ -223,6 +224,18 @@ function closeQrFull(){
 }
 $('#qrFull').onclick = closeQrFull;
 document.addEventListener('keydown', e => { if(e.key==='Escape') closeQrFull(); });
+
+// [AI 연결] — 이 exe 를 AI 프로그램 설정에 MCP 서버로 등록한다. 배포 파일 이름에 버전·해시가
+// 붙어 매번 경로가 달라지므로, 교사가 경로를 손으로 적지 않게 프로그램이 스스로 적는다.
+$('#mcpBtn').onclick = async (e) => {
+  e.preventDefault();
+  try {
+    const r = await fetch('/api/mcp/install', { method:'POST' });
+    const j = await r.json();
+    alert(r.ok ? `${j.message}\n\n설정 파일: ${j.config}\n실행 파일: ${j.command}`
+               : `AI 연결 실패 — ${j.error || r.status}`);
+  } catch (err) { alert('AI 연결 실패 — ' + err); }
+};
 
 // 엠블럼 클릭 → 처음 화면(로비). 실수로 시작했을 때 빠져나오는 길.
 // 진행 중일 때만 확인창(실제 게임이 잘못 눌려 날아가지 않게). 로비면 이미 처음이라 무시.

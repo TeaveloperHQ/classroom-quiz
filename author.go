@@ -79,6 +79,20 @@ func handleDeleteQuiz(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }
 
+// handleMCPInstall 은 교사 화면의 [AI 연결] 버튼 처리 — 이 exe 를 AI 프로그램 설정에
+// MCP 서버로 등록한다(mcpinstall.go). 실패해도 이유를 그대로 화면에 보여 준다.
+func handleMCPInstall(w http.ResponseWriter, r *http.Request) {
+	cfg := mcpClientConfigPath()
+	_, msg, err := installMCP(cfg, true)
+	if err != nil {
+		writeErr(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	exe, _ := selfPath()
+	log.Printf("AI 연결 등록: %s (%s)", cfg, exe)
+	writeJSON(w, http.StatusOK, map[string]string{"message": msg, "config": cfg, "command": exe})
+}
+
 // ── 게임 결과(형성평가 기록) ─────────────────────────────────────
 
 func handleListResults(w http.ResponseWriter, r *http.Request) {

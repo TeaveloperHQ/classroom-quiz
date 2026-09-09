@@ -44,11 +44,18 @@ const (
 func main() {
 	setupLogging()
 
-	// `classroom-quiz.exe mcp` — AI(Claude 등)가 퀴즈를 만들어 주는 MCP 서버 모드.
-	// 서버를 띄우지 않고 표준입출력으로만 대화하므로 포트도 브라우저도 쓰지 않는다(mcp.go).
-	if len(os.Args) > 1 && os.Args[1] == "mcp" {
-		runMCP()
-		return
+	if len(os.Args) > 1 {
+		switch os.Args[1] {
+		// AI(Claude 등)가 퀴즈를 만들어 주는 MCP 서버 모드. 서버를 띄우지 않고
+		// 표준입출력으로만 대화하므로 포트도 브라우저도 쓰지 않는다(mcp.go).
+		case "mcp":
+			runMCP()
+			return
+		// 이 exe 를 AI 프로그램 설정에 MCP 서버로 등록(mcpinstall.go).
+		case "mcp-install":
+			runMCPInstall(os.Args[2:])
+			return
+		}
 	}
 
 	sub, err := fs.Sub(assetsFS, "assets")
@@ -108,6 +115,9 @@ func main() {
 	mux.HandleFunc("/results", localOnly(func(w http.ResponseWriter, r *http.Request) {
 		serveAsset(w, sub, "results.html")
 	}))
+	// AI 연결(MCP) 등록 — 교사 화면 버튼용. 설정을 고치는 동작이라 교사 PC 전용.
+	mux.HandleFunc("POST /api/mcp/install", localOnly(handleMCPInstall))
+
 	mux.HandleFunc("GET /api/results", localOnly(handleListResults))
 	mux.HandleFunc("GET /api/results/{quiz}/{file}", localOnly(handleGetResult))
 	mux.HandleFunc("DELETE /api/results/{quiz}/{file}", localOnly(handleDeleteResult))
@@ -144,6 +154,10 @@ func main() {
 	if len(candidates) > 1 {
 		log.Printf("LAN IP 후보 %v (QR 가 %s 로 안 되면 다른 후보로 시도)", candidates, primaryIP)
 	}
+
+	// 새 버전을 받아 파일 이름이 바뀌어도 AI 연결이 끊기지 않게, 등록해 둔 경로를 최신으로 맞춘다
+	// (등록한 적이 없으면 아무것도 하지 않는다 — mcpinstall.go).
+	go refreshMCPRegistration()
 
 	// 교사 PC 의 브라우저를 제어 화면으로 자동으로 연다(localhost).
 	go openBrowser(fmt.Sprintf("http://127.0.0.1:%d/host", port))

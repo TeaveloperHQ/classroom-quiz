@@ -65,6 +65,11 @@ go run .
 - **보기 표시**: teaveloper 테마 색 + 보기 순번만큼의 엠블럼(1개·2개 나란히·3개부터 방사형), 공개/학생 화면 일관.
 - **재접속**: 학생 페이지가 `sessionStorage` 토큰으로 식별 — 끊겨도 같은 점수로 복귀.
   연결(`client`)과 게임상태(`Player`)를 분리해 재접속 시 `Player.conn`만 갈아낀다.
+  QR 을 다시 찍으면 탭이 새로 열려 토큰도 새로 생기므로, **게임 중에는 같은 이름의 끊긴 플레이어를
+  이어받는다**. 로비에서 끊기면(지킬 점수가 없다) 명단에서 지운다 — 안 그러면 나가거나 이름을 바꾼
+  학생의 옛 이름이 유령으로 남는다.
+- **타이머**: 남은 시간의 기준은 서버(`remainMs`). 상태는 학생이 답할 때마다 다시 나가므로, 클라가
+  제한시간부터 새로 세면 숫자가 되돌아가 튄다. 화면은 받은 값으로 마감 시각을 잡아 그린다.
 
 ### WebSocket 프로토콜
 - 호스트 → 서버: `{type:"start",quizId}` `{type:"next"}` `{type:"end"}`
@@ -78,8 +83,16 @@ go run .
 교사는 `/author` 에서 다듬어 그대로 진행하면 된다.
 
 ```bash
-classroom-quiz.exe mcp     # stdio(표준입출력) JSON-RPC. 포트를 열지 않는다.
+classroom-quiz.exe mcp                    # stdio(표준입출력) JSON-RPC. 포트를 열지 않는다.
+classroom-quiz.exe mcp-install [설정경로]   # 이 exe 를 AI 프로그램 설정에 등록(교사 화면 [AI 연결] 과 동일)
 ```
+
+**경로 등록은 exe 가 스스로 한다.** 배포 파일 이름에는 버전·커밋 해시가 붙어
+(`교실_퀴즈-0.0.0-abc1234.exe`) 빌드마다 달라지므로, 사람이 설정 파일 경로를 관리하면 매번 깨진다.
+교사 화면의 **[AI 연결]** 버튼(또는 `mcp-install`)이 제 절대경로를 적고, 그 뒤로는 **앱을 켤 때마다
+이미 등록된 항목의 경로만 조용히 갱신**한다(`refreshMCPRegistration`). 등록한 적이 없으면 아무것도
+만들지 않는다 — 남의 설정 파일이므로 다른 서버 설정과 우리 항목의 다른 필드는 보존하고,
+고치기 전 `.bak` 을 남기며, 깨진 JSON 은 덮어쓰지 않고 오류로 알린다.
 
 - **교사 PC 에 파이썬·Node 를 깔지 않는다** — 배포물인 exe 자신이 MCP 서버다(별도 설치 0).
 - 저장 경로·검증은 편집기와 **완전히 동일**(`saveQuiz` 재사용) → AI 가 만든 퀴즈와 손으로 만든 퀴즈가 같다.
@@ -101,8 +114,9 @@ classroom-quiz.exe mcp     # stdio(표준입출력) JSON-RPC. 포트를 열지 �
 
 | 파일 | 역할 |
 |---|---|
-| main.go | LAN IP 탐지·`0.0.0.0` 바인딩·라우팅·QR·브라우저 자동오픈·로그·`mcp` 서브커맨드 |
+| main.go | LAN IP 탐지·`0.0.0.0` 바인딩·라우팅·QR·브라우저 자동오픈·로그·`mcp`/`mcp-install` 서브커맨드 |
 | mcp.go | MCP 서버(stdio JSON-RPC) — AI 가 퀴즈를 만들고 결과를 읽는 도구 |
+| mcpinstall.go | AI 프로그램 설정에 이 exe 를 등록·경로 자동 갱신(파일 이름이 바뀌어도 연결 유지) |
 | hub.go | 연결/디스패치(액터 run 루프), client, 재접속, 토큰 |
 | game.go | 상태머신·점수·스트릭·분포·순위·시상대·뷰 빌더 |
 | store.go | 퀴즈 JSON 저장소(CRUD, 검증, 원자적 쓰기) |
@@ -110,6 +124,7 @@ classroom-quiz.exe mcp     # stdio(표준입출력) JSON-RPC. 포트를 열지 �
 | results.go | 게임 결과 저장소(퀴즈별·날짜별 CRUD) |
 | netmedia*.go | 학생 접속 IP의 연결 방식 판별(무선/유선) |
 | versioninfo.json + resource_windows_amd64.syso | 윈도우 실행 아이콘·파일 속성(제품 이름·버전) 리소스 |
+| hub_test.go, mcpinstall_test.go | 명단·재접속·타이머, MCP 등록 회귀 테스트 |
 | assets/{host,student,author,results}.html | 교사 화면 / 학생 화면 / 편집기 / 결과 |
 
 ## 다음 후보
