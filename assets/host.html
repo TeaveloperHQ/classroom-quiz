@@ -179,7 +179,7 @@ const $ = (s, el=document) => el.querySelector(s);
 const el = (tag, cls, html) => { const e=document.createElement(tag); if(cls)e.className=cls; if(html!=null)e.innerHTML=html; return e; };
 function imageEl(src){ if(!src) return null; const i=el('img','qimage'); i.src=src; i.alt='문제 그림'; return i; }
 const app = $('#app');
-let ws, info = {}, lastState = null, countdown = null;
+let ws, info = {}, lastState = null, countdown = null, lobbyPoll = null;
 
 function send(o){ if(ws && ws.readyState===1) ws.send(JSON.stringify(o)); }
 
@@ -232,7 +232,7 @@ $('#mcpBtn').onclick = async (e) => {
   try {
     const r = await fetch('/api/mcp/install', { method:'POST' });
     const j = await r.json();
-    alert(r.ok ? `${j.message}\n\n설정 파일: ${j.config}\n실행 파일: ${j.command}`
+    alert(r.ok ? `${j.message}\n\n실행 파일: ${j.command}`
                : `AI 연결 실패 — ${j.error || r.status}`);
   } catch (err) { alert('AI 연결 실패 — ' + err); }
 };
@@ -282,6 +282,7 @@ function connect(){
 
 function render(s){
   clearInterval(countdown); countdown=null;
+  clearInterval(lobbyPoll); lobbyPoll=null;
   // 전체화면 QR 가 열려 있고 로비면 명단/숫자를 실시간 갱신.
   if(s.phase==='lobby' && $('#qrFull').classList.contains('show')) fillQrPlayers(s);
   if(s.phase==='lobby') return renderLobby(s);
@@ -321,13 +322,27 @@ async function renderLobby(s){
   wrap.append(right);
   app.append(wrap);
 
-  // 퀴즈 목록(로컬 전용 API).
-  try {
-    const list = await fetch('/api/quizzes').then(r=>r.json());
-    for(const q of list){ const o=el('option'); o.value=q.id; o.textContent=`${q.title} (${q.questions}문항)`; sel.append(o); }
-  } catch(e){}
   sel.onchange = () => startBtn.disabled = !sel.value;
   startBtn.onclick = () => sel.value && send({type:'start', quizId:sel.value});
+
+  // 퀴즈 목록(로컬 전용 API). AI 나 편집기가 새 퀴즈를 만들면 이 화면을 새로고침하지 않아도
+  // 목록에 나타나도록 로비에 있는 동안 주기적으로 다시 읽는다(고른 퀴즈는 그대로 둔다).
+  await fillQuizList(sel, startBtn);
+  lobbyPoll = setInterval(() => fillQuizList(sel, startBtn), 4000);
+}
+
+async function fillQuizList(sel, startBtn){
+  let list;
+  try { list = await fetch('/api/quizzes').then(r=>r.json()); } catch(e){ return; }
+  const label = q => `${q.title} (${q.questions}문항)`;
+  const same = [...sel.options].slice(1).map(o=>o.value+'|'+o.textContent).join(',')
+            === list.map(q=>q.id+'|'+label(q)).join(',');
+  if(same) return; // 바뀐 게 없으면 건드리지 않는다(고르는 중에 목록이 튀지 않게).
+  const picked = sel.value;
+  sel.innerHTML = '<option value="">퀴즈를 고르세요…</option>';
+  for(const q of list){ const o=el('option'); o.value=q.id; o.textContent=label(q); sel.append(o); }
+  if(picked && list.some(q=>q.id===picked)) sel.value = picked;
+  startBtn.disabled = !sel.value;
 }
 
 // 보기 순번 n 만큼 엠블럼을 그린다(1·2개 나란히, 3개부터 방사형).

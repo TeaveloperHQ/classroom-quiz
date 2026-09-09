@@ -57,6 +57,8 @@ type rpcResponse struct {
 
 // runMCP 은 stdin 으로 들어오는 JSON-RPC 요청을 stdout 으로 응답한다(MCP stdio 전송).
 func runMCP() {
+	// AI 프로그램이 GUI 에서 띄우면 콘솔 창이 열릴 수 있다 — 교사에게 보이지 않게 숨긴다.
+	hideOwnConsole()
 	log.Printf("MCP 서버 시작 (퀴즈 폴더: %s)", quizzesDir())
 	dec := json.NewDecoder(os.Stdin)
 	enc := json.NewEncoder(os.Stdout)
@@ -123,7 +125,8 @@ func mcpInitialize(params json.RawMessage) any {
 			"quizzes 폴더에 바로 저장되어 교사 화면에서 그대로 진행할 수 있습니다.\n" +
 			"퀴즈를 만들 때: 보기는 2~6개(4개 권장), 정답은 최소 1개 표시, 제한시간 기본 20초, 배점 기본 1000점.\n" +
 			"학생 휴대폰 화면에서 읽히도록 질문과 보기는 짧게 쓰세요.\n" +
-			"이미 실행 중인 앱의 편집기 화면은 자동 갱신되지 않으니, 저장 후 새로고침하라고 안내하세요.",
+			"저장하면 교사 화면 목록에 몇 초 안에 저절로 나타납니다(교사에게 새로고침을 시키지 마세요).\n" +
+			"AI 는 사실을 틀릴 수 있으니, 만든 뒤에는 정답을 확인해 보라고 한마디 덧붙이세요.",
 	}
 }
 

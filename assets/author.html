@@ -425,6 +425,9 @@ $('#importFile').onchange = (e) => { const f = e.target.files[0]; e.target.value
 })();
 
 loadList();
+// AI 가 만든 퀴즈가 새로고침 없이 보이도록, 이 창으로 돌아올 때마다 목록을 다시 읽는다
+// (편집 중인 내용은 건드리지 않는다 — 왼쪽 목록만 다시 그린다).
+window.addEventListener('focus', loadList);
 </script>
 </body>
 </html>

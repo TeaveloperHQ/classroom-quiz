@@ -5,6 +5,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"strings"
 )
 
 // 저작(authoring) API. 학생도 같은 AP 에서 서버에 닿으므로, 퀴즈 편집 엔드포인트는
@@ -82,15 +83,32 @@ func handleDeleteQuiz(w http.ResponseWriter, r *http.Request) {
 // handleMCPInstall 은 교사 화면의 [AI 연결] 버튼 처리 — 이 exe 를 AI 프로그램 설정에
 // MCP 서버로 등록한다(mcpinstall.go). 실패해도 이유를 그대로 화면에 보여 준다.
 func handleMCPInstall(w http.ResponseWriter, r *http.Request) {
-	cfg := mcpClientConfigPath()
-	_, msg, err := installMCP(cfg, true)
-	if err != nil {
-		writeErr(w, http.StatusBadRequest, err.Error())
+	results := installMCPAll(true)
+	if len(results) == 0 {
+		writeErr(w, http.StatusBadRequest,
+			"등록할 AI 프로그램 설정을 찾지 못했습니다. 쓰시는 프로그램을 설치·실행한 뒤 다시 누르거나,\n"+
+				`명령 프롬프트에서 classroom-quiz.exe mcp-install "설정 파일 경로" 로 알려 주세요.`)
 		return
 	}
 	exe, _ := selfPath()
-	log.Printf("AI 연결 등록: %s (%s)", cfg, exe)
-	writeJSON(w, http.StatusOK, map[string]string{"message": msg, "config": cfg, "command": exe})
+	var done, failed []string
+	for _, res := range results {
+		if res.Err != nil {
+			failed = append(failed, res.Name+" — "+res.Err.Error())
+			continue
+		}
+		done = append(done, res.Name)
+		log.Printf("AI 연결 등록: %s (%s)", res.Path, exe)
+	}
+	if len(done) == 0 {
+		writeErr(w, http.StatusBadRequest, strings.Join(failed, "\n"))
+		return
+	}
+	msg := strings.Join(done, ", ") + " 에 연결했습니다.\n해당 프로그램을 완전히 껐다가 다시 켜면 '교실 퀴즈' 도구가 붙습니다."
+	if len(failed) > 0 {
+		msg += "\n\n실패: " + strings.Join(failed, "\n")
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"message": msg, "command": exe})
 }
 
 // ── 게임 결과(형성평가 기록) ─────────────────────────────────────

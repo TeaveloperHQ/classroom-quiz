@@ -64,7 +64,7 @@ func TestInstallPreservesOtherSettings(t *testing.T) {
   "theme": "dark",
   "mcpServers": {
     "other-app": { "command": "C:\\other\\app.exe", "args": ["serve"] },
-    "classroom-quiz": { "command": "C:\\옛경로\\교실_퀴즈-0.0.0-old.exe", "args": ["mcp"], "env": { "K": "V" } }
+    "classroom-quiz": { "type": "stdio", "command": "C:\\옛경로\\교실_퀴즈-0.0.0-old.exe", "args": ["mcp"], "env": { "K": "V" } }
   }
 }`
 	if err := os.WriteFile(path, []byte(orig), 0644); err != nil {
@@ -94,6 +94,10 @@ func TestInstallPreservesOtherSettings(t *testing.T) {
 	}
 	if env, _ := e["env"].(map[string]any); env == nil || env["K"] != "V" {
 		t.Errorf("우리 항목의 다른 필드(env)가 사라졌다: %v", e["env"])
+	}
+	// Claude Code 는 항목에 type:"stdio" 를 넣는다 — 우리가 경로만 고치고 지우면 안 된다.
+	if e["type"] != "stdio" {
+		t.Errorf("우리 항목의 type 필드가 사라졌다: %v", e["type"])
 	}
 	if _, err := os.Stat(path + ".bak"); err != nil {
 		t.Errorf("고치기 전 사본(.bak)을 남겨야 한다: %v", err)
@@ -127,6 +131,33 @@ func TestRefreshDoesNotCreate(t *testing.T) {
 	b, _ := os.ReadFile(other)
 	if string(b) != orig {
 		t.Errorf("파일이 바뀌었다:\n%s", b)
+	}
+}
+
+// 교사가 어떤 AI 프로그램을 쓸지 모르므로, 등록해 준 설정 파일 경로를 기억해 두고
+// 그 파일들도 자동 갱신 대상으로 삼는다(Claude Desktop 전용이 아니다).
+func TestRememberedClientsAreRefreshed(t *testing.T) {
+	t.Setenv("CLASSROOM_QUIZ_HOME", t.TempDir()) // mcp-clients.json 을 임시 폴더에
+	dir := t.TempDir()
+	cursor := filepath.Join(dir, "cursor-mcp.json")
+	if err := os.WriteFile(cursor, []byte(`{"mcpServers":{"classroom-quiz":{"command":"C:\\old\\quiz.exe","args":["mcp"]}}}`), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	rememberClient(cursor)
+	if got := rememberedClients(); len(got) != 1 || got[0] != cursor {
+		t.Fatalf("기억한 목록 = %v, [%s] 여야 한다", got, cursor)
+	}
+	rememberClient(cursor) // 같은 경로는 한 번만
+	if got := rememberedClients(); len(got) != 1 {
+		t.Errorf("같은 경로가 중복 기록됐다: %v", got)
+	}
+
+	refreshMCPRegistration() // 앱을 켤 때 하는 일
+
+	exe, _ := selfPath()
+	if e := ourEntry(t, readCfg(t, cursor)); e["command"] != exe {
+		t.Errorf("기억해 둔 설정 파일이 갱신되지 않았다: %v", e["command"])
 	}
 }
 
