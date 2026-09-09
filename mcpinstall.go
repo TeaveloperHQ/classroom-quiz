@@ -31,42 +31,99 @@ func mcpClientsListPath() string {
 	return filepath.Join(dataDir(), "mcp-clients.json")
 }
 
-// mcpClient 는 교사 PC 에 있을 법한 AI 프로그램의 설정 파일 한 곳.
+// mcpClient 는 교사 PC 에 있을 법한 AI 프로그램 한 개 — 설정 파일 자리와, 그 프로그램이
+// 정말 깔려 있는지 알아볼 흔적(폴더)들.
 //
-// 누가 내려받아 쓸지 모르므로 특정 프로그램을 가정하지 않는다. 아래 목록을 훑되
-// **이미 있는 파일만** 건드리고(그 프로그램을 쓴다는 뜻), 하나도 없으면 가장 흔한
-// Claude Desktop 자리에 새로 만든다. 목록에 없는 프로그램은 설정 파일 경로를 주면 된다
-// (`mcp-install <경로>`) — 그 경로는 기억해 두었다가 다음부터 함께 갱신한다.
+// 누가 내려받아 쓸지 모르므로 특정 프로그램을 가정하지 않는다. 다만 **깔려 있지 않은
+// 프로그램의 설정은 만들지도, 건드리지도 않는다** — 없는 앱의 폴더를 만들어 두면 교사에게는
+// 정체불명의 파일이고, "○○ 에 연결했습니다" 같은 안내도 거짓말이 된다.
+// 목록에 없는 프로그램은 설정 파일 경로를 주면 된다(`mcp-install <경로>`) — 그 경로는
+// 기억해 두었다가 다음부터 함께 갱신한다.
 type mcpClient struct {
-	name       string
-	path       string
-	createHere bool // 설정 파일이 하나도 없을 때 새로 만들 자리
+	name         string
+	path         string   // 설정 파일 자리
+	markers      []string // 이 프로그램이 깔려 있으면 있는 폴더들(우리가 만드는 것 말고)
+	dedicatedDir bool     // 설정 파일이 그 프로그램 전용 폴더 안에 있나(홈의 점파일이면 false)
+}
+
+// installed 는 그 프로그램을 이 PC 에서 쓰는지 본다.
+//   - 설치·데이터 폴더(markers)가 있으면 쓴다. 설정 파일을 아직 안 만들었어도 그렇다
+//     (Claude Desktop 은 설정 파일을 스스로 만들어 주지 않는다).
+//   - 설정 파일이 이미 있으면 쓴다. 단 그 파일이 전용 폴더에 있고 그 안에 우리가 만든 것밖에
+//     없다면, 우리가 만들어 둔 껍데기이므로 "쓴다"고 보지 않는다.
+func (c mcpClient) installed() bool {
+	for _, m := range c.markers {
+		if st, err := os.Stat(m); err == nil && st.IsDir() {
+			return true
+		}
+	}
+	if _, err := os.Stat(c.path); err != nil {
+		return false
+	}
+	if c.dedicatedDir {
+		return dirHasForeignFiles(filepath.Dir(c.path), filepath.Base(c.path))
+	}
+	return true
+}
+
+// dirHasForeignFiles 는 폴더에 우리가 만든 파일(설정·백업·임시) 말고 다른 게 있는지 본다.
+func dirHasForeignFiles(dir, ourFile string) bool {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return false
+	}
+	ours := map[string]bool{ourFile: true, ourFile + ".bak": true, ourFile + ".tmp": true}
+	for _, e := range entries {
+		if !ours[e.Name()] {
+			return true
+		}
+	}
+	return false
 }
 
 func knownMCPClients() []mcpClient {
 	home, _ := os.UserHomeDir()
-	var desktop string
+	var desktop mcpClient
 	switch runtime.GOOS {
 	case "windows":
 		if ad := os.Getenv("APPDATA"); ad != "" {
-			desktop = filepath.Join(ad, "Claude", "claude_desktop_config.json")
+			desktop = mcpClient{
+				name:         "Claude Desktop",
+				path:         filepath.Join(ad, "Claude", "claude_desktop_config.json"),
+				dedicatedDir: true,
+			}
+			if la := os.Getenv("LOCALAPPDATA"); la != "" {
+				desktop.markers = []string{filepath.Join(la, "AnthropicClaude"), filepath.Join(la, "Programs", "claude")}
+			}
 		}
 	case "darwin":
 		if home != "" {
-			desktop = filepath.Join(home, "Library", "Application Support", "Claude", "claude_desktop_config.json")
+			desktop = mcpClient{
+				name:         "Claude Desktop",
+				path:         filepath.Join(home, "Library", "Application Support", "Claude", "claude_desktop_config.json"),
+				markers:      []string{"/Applications/Claude.app"},
+				dedicatedDir: true,
+			}
 		}
 	default:
 		if home != "" {
-			desktop = filepath.Join(home, ".config", "Claude", "claude_desktop_config.json")
+			desktop = mcpClient{
+				name:         "Claude Desktop",
+				path:         filepath.Join(home, ".config", "Claude", "claude_desktop_config.json"),
+				dedicatedDir: true,
+			}
 		}
 	}
 
-	list := []mcpClient{{name: "Claude Desktop", path: desktop, createHere: true}}
+	list := []mcpClient{desktop}
 	if home != "" {
-		// 같은 mcpServers 형식을 쓰는 것들 — 파일이 있을 때만 손댄다.
+		// 같은 mcpServers 형식을 쓰는 것들. 이 둘은 프로그램이 설정 파일을 스스로 만들어
+		// 두므로, 파일이나 제 폴더가 있으면 쓰는 것으로 본다.
 		list = append(list,
-			mcpClient{name: "Claude Code", path: filepath.Join(home, ".claude.json")},
-			mcpClient{name: "Cursor", path: filepath.Join(home, ".cursor", "mcp.json")},
+			mcpClient{name: "Claude Code", path: filepath.Join(home, ".claude.json"),
+				markers: []string{filepath.Join(home, ".claude")}},
+			mcpClient{name: "Cursor", path: filepath.Join(home, ".cursor", "mcp.json"),
+				markers: []string{filepath.Join(home, ".cursor")}, dedicatedDir: true},
 		)
 	}
 	out := list[:0]
@@ -76,16 +133,6 @@ func knownMCPClients() []mcpClient {
 		}
 	}
 	return out
-}
-
-// mcpClientConfigPath 는 설정 파일을 새로 만들 자리(가장 흔한 Claude Desktop).
-func mcpClientConfigPath() string {
-	for _, c := range knownMCPClients() {
-		if c.createHere {
-			return c.path
-		}
-	}
-	return ""
 }
 
 // selfPath 는 지금 실행 중인 exe 의 절대 경로.
@@ -246,10 +293,10 @@ func installMCPAll(create bool) []mcpResult {
 		targets = append(targets, target{name, path})
 	}
 
-	anyExists := false
+	// 이 PC 에서 실제로 쓰는 AI 프로그램만 대상으로 삼는다. 안 깔린 프로그램의 설정을
+	// 만들어 두면 교사에겐 정체불명의 파일이고, 안내 문구도 거짓이 된다.
 	for _, c := range knownMCPClients() {
-		if _, err := os.Stat(c.path); err == nil {
-			anyExists = true
+		if c.installed() {
 			add(c.name, c.path)
 		}
 	}
@@ -257,10 +304,6 @@ func installMCPAll(create bool) []mcpResult {
 		if _, err := os.Stat(p); err == nil {
 			add(filepath.Base(p), p)
 		}
-	}
-	// 설정 파일이 하나도 없다 = 아직 AI 프로그램을 안 붙였다. 교사가 누른 경우에만 새로 만든다.
-	if create && !anyExists {
-		add("Claude Desktop", mcpClientConfigPath())
 	}
 
 	out := make([]mcpResult, 0, len(targets))

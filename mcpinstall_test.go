@@ -161,6 +161,83 @@ func TestRememberedClientsAreRefreshed(t *testing.T) {
 	}
 }
 
+// 빈 PC 를 흉내 낸다(AI 프로그램 없음). knownMCPClients 가 보는 환경변수만 갈아끼운다.
+func emptyPC(t *testing.T) string {
+	t.Helper()
+	root := t.TempDir()
+	for _, kv := range [][2]string{
+		{"CLASSROOM_QUIZ_HOME", filepath.Join(root, "data")},
+		{"APPDATA", filepath.Join(root, "AppData", "Roaming")},
+		{"LOCALAPPDATA", filepath.Join(root, "AppData", "Local")},
+		{"USERPROFILE", filepath.Join(root, "home")},
+		{"HOME", filepath.Join(root, "home")},
+	} {
+		t.Setenv(kv[0], kv[1])
+	}
+	if err := os.MkdirAll(filepath.Join(root, "home"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	return root
+}
+
+// AI 프로그램이 하나도 없으면 아무 설정도 만들지 않는다.
+// (없는 앱의 폴더를 만들어 두면 교사에겐 정체불명이고, 안내 문구도 거짓이 된다.)
+func TestNoClientInstalledCreatesNothing(t *testing.T) {
+	root := emptyPC(t)
+
+	if got := installMCPAll(true); len(got) != 0 {
+		t.Fatalf("등록 결과 = %v, 아무것도 하지 말아야 한다", got)
+	}
+	if _, err := os.Stat(filepath.Join(root, "AppData", "Roaming", "Claude")); !os.IsNotExist(err) {
+		t.Error("Claude 폴더를 만들었다 — 안 깔린 프로그램이다")
+	}
+}
+
+// 설치 흔적이 있으면(설정 파일은 아직 없어도) 설정을 만들어 준다.
+// Claude Desktop 은 설정 파일을 스스로 만들어 주지 않기 때문이다.
+func TestInstalledClientGetsConfig(t *testing.T) {
+	root := emptyPC(t)
+	if err := os.MkdirAll(filepath.Join(root, "AppData", "Local", "AnthropicClaude"), 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	got := installMCPAll(true)
+	if len(got) != 1 || got[0].Name != "Claude Desktop" || got[0].Err != nil {
+		t.Fatalf("등록 결과 = %+v, Claude Desktop 하나여야 한다", got)
+	}
+	cfg := filepath.Join(root, "AppData", "Roaming", "Claude", "claude_desktop_config.json")
+	exe, _ := selfPath()
+	if e := ourEntry(t, readCfg(t, cfg)); e["command"] != exe {
+		t.Errorf("command = %v, 지금 실행 파일이어야 한다", e["command"])
+	}
+}
+
+// 우리가 만들어 둔 껍데기 설정만 남아 있는 폴더는 "그 프로그램을 쓴다"로 보지 않는다.
+// (앱을 켤 때마다 없는 프로그램을 손봤다는 로그가 찍히던 문제)
+func TestOurLeftoverConfigIsNotAnInstalledClient(t *testing.T) {
+	root := emptyPC(t)
+	dir := filepath.Join(root, "AppData", "Roaming", "Claude")
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	cfg := filepath.Join(dir, "claude_desktop_config.json")
+	if err := os.WriteFile(cfg, []byte(`{"mcpServers":{"classroom-quiz":{"command":"C:\\옛경로.exe","args":["mcp"]}}}`), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	if got := installMCPAll(false); len(got) != 0 {
+		t.Errorf("자동 갱신 결과 = %+v, 우리 껍데기는 건드리지 말아야 한다", got)
+	}
+
+	// 그 프로그램이 실제로 쓰이면(다른 파일이 함께 있으면) 다시 대상이 된다.
+	if err := os.WriteFile(filepath.Join(dir, "config.json"), []byte("{}"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if got := installMCPAll(false); len(got) != 1 || !got[0].Changed {
+		t.Errorf("자동 갱신 결과 = %+v, 실제로 쓰는 프로그램은 갱신해야 한다", got)
+	}
+}
+
 // 손으로 고치다 깨진 설정 파일은 덮어쓰지 않는다(다른 연결까지 날아간다).
 func TestInstallRefusesBrokenConfig(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "cfg.json")
