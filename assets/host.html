@@ -88,6 +88,11 @@
                           font-weight: 700; font-size: clamp(15px, 2.1vh, 24px); text-align: center;
                           animation: pop .25s ease; }
   .qrplayers .names .empty { color: #cbd5e1; font-size: clamp(15px, 2vh, 20px); grid-column: 1 / -1; }
+  /* 퀴즈 도중 QR 을 띄웠을 때 — 명단 대신 "다시 들어오기" 안내를 크게. */
+  .qrplayers .rejoin { display: none; color: #fff; }
+  .qrplayers .rejoin b { color: #38bdf8; }
+  .qrplayers .rejoin > b { display: block; font-size: clamp(22px, 3.4vh, 40px); margin-bottom: 1.6vh; }
+  .qrplayers .rejoin span { font-size: clamp(16px, 2.4vh, 28px); line-height: 1.5; }
   .lobby .right { flex: 1; min-width: 300px; }
   .pick { display: flex; gap: 10px; margin-bottom: 18px; flex-wrap: wrap; align-items: center; }
   select { font-size: 16px; padding: 12px; border-radius: 10px; border: 1px solid var(--bd);
@@ -155,6 +160,7 @@
   <span class="brand" id="home" title="처음 화면(로비)으로"><img src="/emblem.png" alt="teaveloper"><b>교실 퀴즈</b></span>
   <span id="net" class="netbadge"></span>
   <span class="spring"></span>
+  <a href="#" id="qrBtn" title="접속 QR 을 크게 띄웁니다 — 퀴즈 도중 끊긴 학생이 다시 들어올 때"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM19 19h2v2h-2zM14 19h2v2h-2zM19 14h2v2h-2z"/></svg>QR 보기</a>
   <a href="/results"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14v3M12 9v8M17 12v5"/></svg>결과</a>
   <a href="/author"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>퀴즈 만들기</a>
   <a href="#" id="mcpBtn" title="AI(Claude 등)가 퀴즈를 만들 수 있게 이 프로그램을 연결합니다"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v4M12 17v4M3 12h4M17 12h4"/><circle cx="12" cy="12" r="3.5"/></svg>AI 연결</a>
@@ -169,8 +175,12 @@
     <div class="qrhint">아무 곳이나 누르거나 ESC 로 닫기</div>
   </div>
   <div class="qrplayers">
-    <div class="cnt">참가자 <b id="qrCount">0</b>명</div>
+    <div class="cnt" id="qrCountLine">참가자 <b id="qrCount">0</b>명</div>
     <div class="names" id="qrNames"></div>
+    <div class="rejoin" id="qrRejoin">
+      <b>다시 들어오기</b>
+      <span>QR 을 찍고 <b>쓰던 닉네임 그대로</b> 넣으면<br>하던 점수에 이어서 계속합니다.</span>
+    </div>
   </div>
 </div>
 
@@ -203,10 +213,16 @@ const ICONS = {
 })();
 
 // QR 전체화면 — TV 표출 시 크게. requestFullscreen 으로 브라우저 크롬까지 숨김(best-effort).
+// 퀴즈 도중에도 헤더 [QR 보기] 로 띄운다 — 튕긴 학생이 다시 들어올 길.
 function openQrFull(){
+  const inGame = !!(lastState && lastState.phase !== 'lobby');
   $('#qrFullImg').src = '/qr.png?size=1024';
   $('#qrFullUrl').textContent = info.joinURL || '';
-  if(lastState && lastState.phase==='lobby') fillQrPlayers(lastState);
+  // 로비면 누가 들어왔는지 보여 주고, 진행 중이면 다시 들어오는 방법을 안내한다.
+  $('#qrCountLine').style.display = inGame ? 'none' : '';
+  $('#qrNames').style.display = inGame ? 'none' : '';
+  $('#qrRejoin').style.display = inGame ? 'block' : 'none';
+  if(!inGame && lastState) fillQrPlayers(lastState);
   $('#qrFull').classList.add('show');
   try { document.documentElement.requestFullscreen && document.documentElement.requestFullscreen(); } catch(e){}
 }
@@ -223,6 +239,7 @@ function closeQrFull(){
   try { if(document.fullscreenElement) document.exitFullscreen(); } catch(e){}
 }
 $('#qrFull').onclick = closeQrFull;
+$('#qrBtn').onclick = (e) => { e.preventDefault(); openQrFull(); };
 document.addEventListener('keydown', e => { if(e.key==='Escape') closeQrFull(); });
 
 // [AI 연결] — 이 exe 를 AI 프로그램 설정에 MCP 서버로 등록한다. 배포 파일 이름에 버전·해시가

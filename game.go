@@ -437,6 +437,7 @@ func (h *Hub) studentStateMsg(p *Player) []byte {
 		}
 		m["index"] = h.qIndex + 1
 		m["total"] = len(h.quiz.Questions)
+		m["question"] = q.Text // 학생 폰에서도 질문을 읽을 수 있게(뒷자리·화면이 작은 교실 대비)
 		m["choices"] = ch
 		m["timeSec"] = q.TimeSec
 		m["remainMs"] = h.remainMs()

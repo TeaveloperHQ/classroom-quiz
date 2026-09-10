@@ -56,6 +56,12 @@
   .qbar { padding: 14px 16px; text-align:center; }
   .qbar .idx { color:var(--mut); font-size:14px; }
   .qbar .timer { font-size: 30px; font-weight:900; }
+  /* 질문 — 프로젝터가 멀거나 잘 안 보이는 자리를 위해 학생 폰에도 띄운다.
+     보기(탭 영역)를 밀어내지 않게 최대 4줄까지만 보여 준다. */
+  .qtext { padding: 0 16px 10px; text-align: center; font-size: 17px; font-weight: 700; line-height: 1.35;
+           display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+  /* 화면이 짧은 폰에서는 질문을 줄여 보기(탭 영역)가 화면 밖으로 밀리지 않게 한다. */
+  @media (max-height: 640px) { .qtext { font-size: 15px; -webkit-line-clamp: 2; padding-bottom: 6px; } }
   .opts { flex:1; display:grid; grid-template-columns:1fr 1fr; gap:10px; padding:12px; }
   .opt { border:none; border-radius:16px; color:#fff; font-weight:800; font-size:20px;
          display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px;
@@ -205,6 +211,9 @@ function renderQuestion(s){
   const remainMs = (s.remainMs!=null ? s.remainMs : (s.timeSec||0)*1000);
   const tm=el('div','timer',String(secLeft(remainMs))); top.append(tm);
   screen.append(top);
+
+  // 질문도 함께(교사 화면과 같은 글). 프로젝터가 안 보이는 자리에서도 읽을 수 있게.
+  if (s.question) { const qt = el('div','qtext'); qt.textContent = s.question; screen.append(qt); }
 
   if(s.answered){
     const c=el('div','center');
