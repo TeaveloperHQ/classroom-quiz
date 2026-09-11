@@ -31,13 +31,18 @@
   /* 사이드바 */
   aside { width: 260px; background: var(--surface); border-right: 1px solid var(--bd);
           display: flex; flex-direction: column; flex-shrink: 0; }
+  /* 사이드바가 260px 로 좁다. 로고·제목·링크·테마버튼이 한 줄에 겨우 들어가므로
+     간격을 좁히고 각 항목은 nowrap 으로 둔다. 그래도 모자라면(글꼴이 크거나 번역이
+     길면) 글자가 세로로 쪼개지는 대신 항목째 다음 줄로 넘어간다. */
   aside header { padding: 16px; font-weight: 800; font-size: 16px;
-                 display: flex; align-items: center; gap: 8px; }
+                 display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
   aside header .logolink { display: inline-flex; flex-shrink: 0; }
+  aside header .ttl { margin-right: auto; white-space: nowrap; font-size: 15px; }
   aside header .logo { width: 30px; height: 30px; padding: 4px 8px; border-radius: 7px;
                        background: var(--brand); object-fit: contain; }
   aside header .ttl { background: var(--brand); -webkit-background-clip: text; background-clip: text; color: transparent; }
-  aside header a { margin-left: auto; font-size: 13px; color: var(--acc); text-decoration: none; font-weight: 600; }
+  aside header a { font-size: 13px; color: var(--acc); text-decoration: none; font-weight: 600; white-space: nowrap; }
+  aside header a + a { margin-left: 4px; }  /* 링크끼리 붙어 보이지 않게 */
   .themebtn { display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--bd);
               background: var(--surface); color: var(--fg); border-radius: 8px; padding: 6px; cursor: pointer; }
   .themebtn:hover { background: var(--hover); }

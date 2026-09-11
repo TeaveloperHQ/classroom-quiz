@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -13,8 +14,10 @@ import (
 // 락이 필요 없다(액터 모델). 게임 규칙은 game.go 에 있다.
 
 const (
-	writeWait  = 10 * time.Second
-	pongWait   = 60 * time.Second
+	writeWait = 10 * time.Second
+	// 끊긴 연결을 알아채는 데 걸리는 시간. 이 시간만큼은 그 학생의 이름이 잡혀 있어
+	// 다시 들어오려는 본인이 "이미 참가 중"이라는 말을 들을 수 있으므로 짧게 잡는다.
+	pongWait   = 30 * time.Second
 	pingPeriod = (pongWait * 9) / 10
 )
 
@@ -98,14 +101,24 @@ func (h *Hub) onRegister(c *client) {
 	p, ok := h.players[c.token]
 	if !ok {
 		// 토큰이 다른데(예: QR 을 다시 찍어 새 탭에서 들어옴 — 탭마다 세션이 새로 생긴다)
-		// 게임 중이라면 같은 이름으로 끊겨 있던 학생을 이어받는다. 안 그러면 점수를 잃고
-		// 명단에 옛 이름이 유령으로 남는다.
-		if h.phase != phaseLobby {
-			if old := h.findDisconnectedByName(c.name); old != nil {
-				h.retoken(old, c.token)
-				p, ok = old, true
-				log.Printf("학생 재입장(이름으로 이어받음): %s", p.name)
-			}
+		// 같은 이름으로 끊겨 있던 학생이면 이어받는다. 안 그러면 점수를 잃고 명단에
+		// 옛 이름이 유령으로 남는다.
+		if old := h.findDisconnectedByName(c.name); old != nil {
+			h.retoken(old, c.token)
+			p, ok = old, true
+			log.Printf("학생 재입장(이름으로 이어받음): %s", p.name)
+		} else if busy := h.findConnectedByName(c.name); busy != nil {
+			// 같은 이름이 지금도 붙어 있다. 옛 탭을 열어 둔 채 QR 을 다시 찍은 본인이거나,
+			// 별명이 겹친 다른 학생이다. 여기서 새 플레이어를 만들어 주면 점수가 둘로
+			// 갈리므로(교실에서 실제로 일어났다) 들여보내지 않고 이유를 알려 준다.
+			h.sendTo(c, mustJSON(map[string]any{
+				"type": "error",
+				"message": "이미 참가 중인 이름입니다. 먼저 들어간 화면에서 계속하세요.\n" +
+					"그 화면을 닫았다면 30초쯤 뒤에 다시 들어오면 이어서 할 수 있습니다.\n" +
+					"다른 사람이라면 다른 이름으로 들어오세요.",
+			}))
+			log.Printf("입장 거절(이름 중복): %s", c.name)
+			return
 		}
 	}
 	if ok {
@@ -150,15 +163,34 @@ func (h *Hub) onUnregister(c *client) {
 
 // findDisconnectedByName 은 같은 이름으로 연결이 끊긴 플레이어를 찾는다(재입장 이어받기용).
 func (h *Hub) findDisconnectedByName(name string) *Player {
-	if name == "" {
+	return h.findByName(name, false)
+}
+
+// findConnectedByName 은 같은 이름으로 지금 붙어 있는 플레이어를 찾는다(중복 입장 거절용).
+func (h *Hub) findConnectedByName(name string) *Player {
+	return h.findByName(name, true)
+}
+
+// findByName — 이름 비교는 앞뒤 공백과 대소문자를 무시한다(학생이 다시 칠 때 흔한 차이).
+func (h *Hub) findByName(name string, connected bool) *Player {
+	want := normName(name)
+	if want == "" {
 		return nil
 	}
 	for _, tok := range h.order {
-		if p := h.players[tok]; p != nil && p.conn == nil && p.name == name {
+		p := h.players[tok]
+		if p == nil || (p.conn != nil) != connected {
+			continue
+		}
+		if normName(p.name) == want {
 			return p
 		}
 	}
 	return nil
+}
+
+func normName(s string) string {
+	return strings.ToLower(strings.Join(strings.Fields(s), " "))
 }
 
 // retoken 은 플레이어를 새 토큰으로 옮긴다(같은 사람이 새 탭/기기로 다시 들어온 경우).

@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 )
@@ -125,6 +126,66 @@ func TestMidGameRejoinKeepsScore(t *testing.T) {
 	}
 	if p.conn == nil {
 		t.Error("이어받은 뒤 연결이 붙어 있어야 한다")
+	}
+}
+
+// 지금 붙어 있는 학생과 같은 이름으로 또 들어오면 들여보내지 않는다.
+//
+// 교실에서 실제로 난 일: 옛 탭을 열어 둔 채 QR 을 다시 찍은 학생이 "새 학생"으로 잡혀
+// 점수가 둘로 갈렸다(같은 이름이 결과표에 10059점과 0점으로 따로 남음).
+func TestDuplicateNameIsRejected(t *testing.T) {
+	h := newHub()
+	first := fakeClient("student", "tok-a", "이세이")
+	h.onRegister(first)
+
+	dup := fakeClient("student", "tok-b", "  이세이 ") // 앞뒤 공백만 다른 같은 이름
+	h.onRegister(dup)
+
+	if len(h.players) != 1 {
+		t.Fatalf("플레이어 수 = %d, 1명이어야 한다(새로 만들면 점수가 갈린다)", len(h.players))
+	}
+	if _, ok := h.players["tok-b"]; ok {
+		t.Error("거절했는데 플레이어가 만들어졌다")
+	}
+	m := firstMsg(t, dup)
+	if m == nil || m["type"] != "error" {
+		t.Fatalf("거절 사유를 알려 줘야 한다: %v", m)
+	}
+	if msg, _ := m["message"].(string); !strings.Contains(msg, "이미 참가 중") {
+		t.Errorf("안내 문구 = %q, 이유를 알 수 있어야 한다", msg)
+	}
+}
+
+// 같은 기기에서 새로고침한 경우(토큰이 같다)는 이름 중복 검사와 무관하게 늘 들어와야 한다.
+func TestSameTokenReconnectAlwaysAllowed(t *testing.T) {
+	h := newHub()
+	h.onRegister(fakeClient("student", "tok-a", "민준"))
+	again := fakeClient("student", "tok-a", "민준")
+	h.onRegister(again)
+
+	if len(h.players) != 1 {
+		t.Fatalf("플레이어 수 = %d, 1명이어야 한다", len(h.players))
+	}
+	if h.players["tok-a"].conn != again {
+		t.Error("새 연결로 갈아끼워야 한다")
+	}
+	if m := firstMsg(t, again); m != nil && m["type"] == "error" {
+		t.Errorf("본인 재접속을 거절했다: %v", m)
+	}
+}
+
+// firstMsg 는 그 연결에 처음 보내진 메시지(없으면 nil).
+func firstMsg(t *testing.T, c *client) map[string]any {
+	t.Helper()
+	select {
+	case b := <-c.send:
+		var m map[string]any
+		if err := json.Unmarshal(b, &m); err != nil {
+			t.Fatalf("메시지 파싱 실패: %v", err)
+		}
+		return m
+	default:
+		return nil
 	}
 }
 

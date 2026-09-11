@@ -50,7 +50,7 @@
           border: 1px solid var(--bd); text-align: center; background: var(--surface); color: var(--fg); }
   button.go { width:100%; max-width:340px; font-size:20px; font-weight:800; padding:14px;
               border:none; border-radius:12px; background:var(--brand); color:#fff; }
-  .err { color:#dc2626; min-height:18px; font-size:14px; }
+  .err { color:#dc2626; min-height:18px; font-size:14px; white-space: pre-line; line-height:1.45; }
 
   /* 답 버튼 */
   .qbar { padding: 14px 16px; text-align:center; }
@@ -103,7 +103,7 @@
 const $ = (s)=>document.querySelector(s);
 const el = (t,c,h)=>{const e=document.createElement(t); if(c)e.className=c; if(h!=null)e.innerHTML=h; return e;};
 const screen = $('#screen');
-let ws, name='', token='', joined=false, countdown=null;
+let ws, name='', token='', joined=false, countdown=null, rejected=false;
 
 const ICONS = {
   moon: '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>',
@@ -144,7 +144,7 @@ function shapeEl(n){
   return s;
 }
 
-function renderJoin(pre){
+function renderJoin(pre, errMsg){
   $('#topbar').style.display='none';
   screen.innerHTML='';
   const c = el('div','center');
@@ -153,12 +153,13 @@ function renderJoin(pre){
   const inp = el('input'); inp.maxLength=12; inp.placeholder='예: 홍길동'; inp.value=pre||''; inp.autofocus=true;
   const btn = el('button','go','입장하기');
   const err = el('div','err');
+  if (errMsg) err.textContent = errMsg;
   c.append(inp, btn, err);
   screen.append(c);
   const go = ()=>{
     const v = inp.value.trim();
     if(!v){ err.textContent='닉네임을 입력하세요.'; return; }
-    name = v; sessionStorage.setItem('cq_name', v); err.textContent='';
+    name = v; sessionStorage.setItem('cq_name', v); err.textContent=''; rejected=false;
     connect();
   };
   btn.onclick = go;
@@ -169,8 +170,19 @@ function connect(){
   const u = `ws://${location.host}/ws?role=student&name=${encodeURIComponent(name)}&token=${token}`;
   ws = new WebSocket(u);
   ws.onopen = ()=>{ joined=true; };
-  ws.onmessage = (e)=>{ const s=JSON.parse(e.data); if(s.type==='state') render(s); };
-  ws.onclose = ()=>{ if(joined) setTimeout(connect,1200); };
+  ws.onmessage = (e)=>{
+    const s = JSON.parse(e.data);
+    // 서버가 들여보내지 않은 경우(예: 이미 참가 중인 이름) — 이유를 보여 주고 다시 고르게 한다.
+    if (s.type === 'error') {
+      rejected = true; joined = false;
+      clearInterval(countdown); countdown = null;
+      try { ws.close(); } catch (err) {}
+      renderJoin(name, s.message);
+      return;
+    }
+    if (s.type === 'state') render(s);
+  };
+  ws.onclose = ()=>{ if(joined && !rejected) setTimeout(connect,1200); };
   ws.onerror = ()=>{};
 }
 
