@@ -125,9 +125,23 @@ const ICONS = {
 // 재접속용 토큰(세션 유지).
 token = sessionStorage.getItem('cq_token');
 if(!token){ token = randId(); sessionStorage.setItem('cq_token', token); }
-const savedName = sessionStorage.getItem('cq_name') || '';
+// 닉네임은 탭을 닫아도 남게 localStorage 에 둔다 — 다음 퀴즈 때 미리 채워 두기용.
+// (토큰 cq_token 은 재접속용이라 sessionStorage 그대로 둔다. 탭마다 새로 발급돼야 한다.)
+const savedName = loadName();
 
 renderJoin(savedName);
+
+/* 저장소 접근이 막힌 브라우저(사파리 프라이빗 등)에서는 던지므로 늘 감싼다. */
+function loadName(){
+  try { const v = localStorage.getItem('cq_name'); if (v) return v; } catch(e){}
+  // 예전 버전은 탭(sessionStorage)에만 적어 뒀다 — 한 번 옮겨 적어 끊김 없이 이어 준다.
+  try {
+    const old = sessionStorage.getItem('cq_name');
+    if (old) { saveName(old); return old; }
+  } catch(e){}
+  return '';
+}
+function saveName(v){ try { localStorage.setItem('cq_name', v); } catch(e){} }
 
 function randId(){ const a=new Uint8Array(8); crypto.getRandomValues(a);
   return [...a].map(b=>b.toString(16).padStart(2,'0')).join(''); }
@@ -156,10 +170,13 @@ function renderJoin(pre, errMsg){
   if (errMsg) err.textContent = errMsg;
   c.append(inp, btn, err);
   screen.append(c);
+  // 저장된 이름은 채워 두기만 한다(자동 참가 안 함 — 공용 기기에서 앞 학생 이름으로 들어가지 않게).
+  // 전체 선택해 두면 다른 학생은 그냥 타이핑하면 덮어써진다.
+  setTimeout(()=>{ try { inp.focus(); if (inp.value) inp.select(); } catch(e){} }, 0);
   const go = ()=>{
     const v = inp.value.trim();
     if(!v){ err.textContent='닉네임을 입력하세요.'; return; }
-    name = v; sessionStorage.setItem('cq_name', v); err.textContent=''; rejected=false;
+    name = v; saveName(v); err.textContent=''; rejected=false;
     connect();
   };
   btn.onclick = go;
