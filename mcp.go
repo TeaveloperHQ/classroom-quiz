@@ -59,7 +59,9 @@ type rpcResponse struct {
 func runMCP() {
 	// AI 프로그램이 GUI 에서 띄우면 콘솔 창이 열릴 수 있다 — 교사에게 보이지 않게 숨긴다.
 	hideOwnConsole()
-	log.Printf("MCP 서버 시작 (퀴즈 폴더: %s)", quizzesDir())
+	log.Printf("MCP 서버 시작 (퀴즈 폴더: %s, 부모: %s)", quizzesDir(), parentChain())
+	// AI 프로그램이 끝났는데 stdin EOF 가 안 오는 경우가 있다 — 부모를 직접 기다린다(parent_windows.go).
+	watchParent()
 	dec := json.NewDecoder(os.Stdin)
 	enc := json.NewEncoder(os.Stdout)
 	for {
