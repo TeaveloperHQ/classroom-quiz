@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-// 게임 결과는 exe 옆 results/<quizId>/<날짜시각>.json 에 한 판씩 저장한다.
+// 게임 결과는 exe 옆 classroom-quiz-results/<quizId>/<날짜시각>.json 에 한 판씩 저장한다.
 // 퀴즈별 폴더 + 날짜 파일이라 "어느 퀴즈를 언제 했나"가 폴더 구조로 바로 보인다.
 // 그림 내장 퀴즈처럼, 결과도 파일이라 그대로 백업·공유·이관이 쉽다.
 
@@ -40,7 +40,7 @@ type ResultSummary struct {
 	TopScore   int    `json:"topScore"`
 }
 
-func resultsDir() string { return filepath.Join(dataDir(), "results") }
+func resultsDir() string { return filepath.Join(dataDir(), "classroom-quiz-results") }
 
 // validResultFile 은 경로 조작을 막는다(폴더 안 단일 .json 파일명만 허용).
 func validResultFile(name string) bool {
@@ -57,7 +57,7 @@ func validResultFile(name string) bool {
 	return true
 }
 
-// saveResult 는 results/<quizId>/<날짜시각>.json 에 원자적으로 기록하고 파일명을 돌려준다.
+// saveResult 는 classroom-quiz-results/<quizId>/<날짜시각>.json 에 원자적으로 기록하고 파일명을 돌려준다.
 func saveResult(r *GameResult) (string, error) {
 	if !validQuizID(r.QuizID) {
 		return "", errors.New("잘못된 퀴즈 ID")

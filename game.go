@@ -200,7 +200,7 @@ func (h *Hub) doPodium() {
 	h.broadcastState()
 }
 
-// saveGameResult 는 완료된 게임(시상대)을 results/<quizId>/<날짜>.json 으로 남긴다.
+// saveGameResult 는 완료된 게임(시상대)을 classroom-quiz-results/<quizId>/<날짜>.json 으로 남긴다.
 func (h *Hub) saveGameResult() {
 	if h.quiz == nil || len(h.players) == 0 {
 		return
@@ -219,7 +219,7 @@ func (h *Hub) saveGameResult() {
 	if name, err := saveResult(res); err != nil {
 		log.Printf("결과 저장 실패: %v", err)
 	} else {
-		log.Printf("결과 저장: results/%s/%s (%d명)", h.quiz.ID, name, len(res.Players))
+		log.Printf("결과 저장: classroom-quiz-results/%s/%s (%d명)", h.quiz.ID, name, len(res.Players))
 	}
 }
 
